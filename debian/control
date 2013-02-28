@@ -1,0 +1,11 @@
+Source: swift-drive
+Section: net
+Priority: optional
+Maintainer: Daniele Valeriani <daniele@dvaleriani.net>
+Build-Depends: debhelper (>= 5)
+Standards-Version: 3.9.3
+
+Package: swift-drive
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends}, swift
+Description: Hard drive management tool for Openstack Swift
