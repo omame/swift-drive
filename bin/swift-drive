@@ -1,0 +1,13 @@
+#!/usr/bin/python
+from sys import argv, exit
+
+command = argv[0]
+function = getattr(__import__('swift_drive.commands',
+                   fromlist=[command]), command)
+try:
+    retval = function()
+except BaseException, err:
+    if '--debug' in argv:
+        raise
+    retval = str(err)
+exit(retval)

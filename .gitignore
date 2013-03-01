@@ -3,4 +3,4 @@ swift-drive.debhelper.log
 swift-drive.postinst.debhelper
 swift-drive.prerm.debhelper
 swift-drive.substvars
-swift-drive
+.DS_Store

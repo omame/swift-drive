@@ -2,23 +2,12 @@
 import re
 import sys
 import urllib2
+from swift_drive.common import config, utils
 
 try:
     from simplejson import json
 except ImportError:
     import json
-
-from ConfigParser import ConfigParser
-
-
-def _exit(msg, error_code=1):
-    '''
-    Exit with a specific error code (default 2)
-    :msg: Message to be returned
-    :error_code: Exit code
-    '''
-    print msg
-    exit(error_code)
 
 
 class swift_drive(object):
@@ -34,29 +23,33 @@ class swift_drive(object):
         self.action = self.args[0]
 
         # Load the controller module
-        controller_type = self.get_config('controller_type')
+        controller_type = config.get_config('controller_type')
         try:
-            ctl = getattr(__import__(swift_drive.plugins.controllers,
-                                fromlist=[controller_type]), controller_type)
+            self.controller = getattr(__import__(swift_drive.plugins.controllers,
+                                                 fromlist=[controller_type]),
+                                      controller_type)
         except:
-            _exit('Failed to load %s controller module' % controller_type, 1)
+            utils.exit('Failed to load %s controller module' % controller_type, 1)
 
-    def execute(self):
-        if self.action == 'getfailed':
-            self.getfailed()
-        elif self.action == 'replace':
-            self.replace()
+        # Load the ticketing module
+        ticketing_system = config.get_config('ticketing_system')
+        try:
+            self.ticketing = getattr(__import__(swift_drive.plugins.ticketing,
+                                                fromlist=[ticketing_system]),
+                                     ticketing_system)
+        except:
+            utils.exit('Failed to load %s ticketing module' % ticketing_system, 1)
 
-    def getfailed():
-        pass
+        # Load the ticketing module
+        backend = config.get_config('backend')
+        try:
+            self.backend = getattr(__import__(swift_drive.plugins.backend,
+                                              fromlist=[backend]),
+                                   backend)
+        except:
+            utils.exit('Failed to load %s backend module' % backend, 1)
 
-    def replace():
-        pass
-
-    def eject():
-        pass
-
-    def get_recon_unmounted():
+    def get_unmounted_drives():
         """
         Get unmounted drives information from swift-recon
         """
@@ -89,19 +82,3 @@ class swift_drive(object):
 
         return content
 
-    def get_config(key):
-        """
-        Get the value for the specified key in the config file
-
-        :param key: configfile: The location of the config file to be parsed
-        :returns: The value for the requested key
-        """
-        configfile = '/etc/swift-drive/swift-drive.conf'
-        c = ConfigParser()
-        if not c.read(configfile):
-            print "Unable to read config file: %s" % configfile
-            exit(1)
-        try:
-            return str(c.get('swift-drive', key))
-        except:
-            return False
