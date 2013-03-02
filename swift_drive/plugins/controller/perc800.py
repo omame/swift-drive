@@ -1,16 +1,27 @@
 import re
 import shlex
 import subprocess
-from swift_drive.common import utils
+from swift_drive.common import utils, config
 
+COMMANDS = ['omconfig', 'omreport']
 
-binaries = ['omreport', 'omconfig']
-
+# First of all check if omreport and omconfig are usable.
+# We need to check if there is an override in the config file and create
+# a dictionary with the specified binaries
+binaries = config.get_config('controller_binaries', 'etc/swift-drive.conf-sample')
+if binaries:
+    binaries = dict([(a.split('/')[-1], a) for a in binaries.split(', ')])
+else:
+    binaries = utils.get_binaries(COMMANDS)
+    if COMMANDS != sorted(binaries.keys()):
+        utils.exit('Error locating binaries for the perc800 controller motule')
+# binaries now should contain a dictionary like this
+# {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
 
 def execute(cmd):
     """
-    Formats the output of the perc800 controller command
-    that is given back by the subprocess.
+    Formats the output of the perc800 controller command that is given back by
+    the subprocess.
 
     :param cmd: The command that should be passed over to the subprocess call.
     :returns: An array with the line output.
@@ -34,54 +45,49 @@ def execute(cmd):
             lines.append(x)
 
     if len(lines) == 0:
-        msg = ("Zero Error: command executed by format_sp_output funtion "
-               "returned no lines.\n(Cmd: %s) ") % cmd
+        msg = ("Zero Error: command returned no lines.\n(Cmd: %s) ") % cmd
         lines.append(msg)
 
     return lines
 
 
-def get_device_info(binary, controller, device):
+def get_device_info(controller, device):
     """
     Collects information about a device on provided controller & device
 
     :param binary: Location of the controller binaries.
     :param controller: The controller index.
-    :param device: A dictionary with device details.
-    :returns: A dictionary that contains an error code and also
-              a message which could be an error message or another
-              two dictionaries containing the collected results about
-              the device.
+    :param device: A dictionary with device details.  <-- TOREVIEW
+    :returns: A dictionary that contains two dictionaries with the collected
+              information about the device.
     """
-
+    # TODO: All those exits should trigger a notification. I think this should
+    #       be handled by utils.exit, not here.
     results = {}
     pdisk = {}
     vdisk = {}
     for name in 'pdisk', 'vdisk':  # <-- BOOKMARK
         d = eval(name)
         cmd = '%s storage %s controller=%s vdisk=%s' % \
-            (binary['omreport'], name, controller, device['unit'])
+              (binaries['omreport'], name, controller, device['unit'])
         res = execute(cmd)
+        # Exit if we catch an error message
         if re.match(r'^Error:*', res[0]):
             msg = ("Error: Unable to get drive info for device%s\n\t"
                    "Returned error, %s ") % (device['name'], res[0])
-            results['message'] = msg
-            results['code'] = 300
-            return results
+            utils.exit(msg)
         else:
-            # We'll use the slot to write the core ticket
+            # We need the slot, otherwise is pointless to go any further
             try:
                 d['slot'] = re.findall(r'Slot \d', res[1])[0][-1]
             except:
                 msg = ("Error: can't fetch the slot number.\n"
-                        "Probably the drive has been removed already.\n\n"
-                        "Controller: %s, unit: %s") % (controller,
-                                                        device['unit'])
-                results['message'] = msg
-                results['code'] = 300
-                return results
+                       "Probably the drive has been removed already.\n\n"
+                       "Controller: %s, unit: %s") % (controller,
+                                                      device['unit'])
+                utils.exit(msg)
 
-            # We can split everything after the second element by :
+            # We can split everything after the second element by ':'
             # so we will have a very nice dictionary (with 0 effort)
             for e in res[2:]:
                 k, v = e.split(':', 1)
@@ -98,7 +104,8 @@ def get_device_info(binary, controller, device):
     results['model'] = pdisk['product id']
     results['firmware'] = pdisk['revision']
     results['slot'] = pdisk['slot']
-    results['capacity'] = pdisk['capacity'].split()[0].split('.')[0].replace(',', '.')[:4] + ' TB'
+    capacity = pdisk['capacity'].split()[0].split('.')[0]
+    results['capacity'] = capacity.replace(',', '.')[:4] + ' TB'
     return results
 
 
@@ -124,7 +131,7 @@ def remove_device(binary, controller, device):
     """
     indicator_cmd = '%s storage pdisk action=blink controller=%s pdisk=%s' \
         % (binary['omconfig'], controller, device['port'])
-    indicator_result = format_sp_output(indicator_cmd)
+    indicator_result = execute(indicator_cmd)
     if not 'Command successful!' in indicator_result[0]:
         results['code'] = 300
         msg = ("Error: Failed to turn the indicator light on for pdisk %s. "
@@ -139,7 +146,7 @@ def remove_device(binary, controller, device):
     """
     removal_cmd = '%s storage vdisk action=deletevdisk controller=%s vdisk=%s' \
         % (binary['omconfig'], controller, device['unit'])
-    removal_result = format_sp_output(removal_cmd)
+    removal_result = execute(removal_cmd)
     if not 'Command successful!' in removal_result[0]:
         results['code'] = 300
         msg = ("Error: Failed to remove unit %s from controller %s "

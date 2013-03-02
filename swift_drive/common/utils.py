@@ -3,7 +3,9 @@ import os
 
 def exit(msg, error_code=1):
     '''
-    Exit with a specific error code (default 1)
+    Exit with a specific error code (default 1).
+    TODO: check if there is a notification module loaded and in case send out
+          a message.
 
     :msg: Message to be returned
     :error_code: Exit code
@@ -14,7 +16,10 @@ def exit(msg, error_code=1):
 
 def get_binaries(binaries):
     """
-    Checks if perc800 binaries actually exist.
+    Check if the binaries are executable. It understands if it should use the
+    provided absolute path or look up the command in $PATH.
+    Each module should know which binaries are required, so this function must
+    remain generic.
 
     :param binaries: A list with the absolute path or just the names for the
                      binaries.

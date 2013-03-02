@@ -3,10 +3,11 @@ from ConfigParser import ConfigParser
 
 def get_config(key, config_file='/etc/swift-drive/swift-drive.conf'):
     """
-    Get the value for the specified key in the config file
+    Get the value for the specified key in the config file.
 
-    :param key: configfile: The location of the config file to be parsed
-    :returns: The value for the requested key
+    :param key: The config parameter to get.
+    :param config_file: The location of the config file to be parsed.
+    :returns: The value for the requested key.
     """
     c = ConfigParser()
     if not c.read(config_file):

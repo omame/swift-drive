@@ -4,3 +4,6 @@ swift-drive.postinst.debhelper
 swift-drive.prerm.debhelper
 swift-drive.substvars
 .DS_Store
+swift-drive.conf
+swift-drive.conf-sample
+core.py
