@@ -1,4 +1,10 @@
 import os
+import re
+import urllib2
+try:
+    from simplejson import json
+except ImportError:
+    import json
 
 
 def exit(msg, error_code=1):
@@ -48,6 +54,40 @@ def get_binaries(binaries):
                 if is_exe(binary_path):
                     results[binary] = binary_path
     return results
+
+
+def get_unmounted_drives():
+    """
+    Get unmounted drives information from swift-recon
+    """
+    ip_address = '127.0.0.1'
+    port = '6000'
+    url = 'http://%s:%s/recon/unmounted' % (ip_address, port)
+
+    retries = 0
+    timeout = 10
+    while (retries < 3):
+        try:
+            urlobj = urllib2.urlopen(url, timeout=timeout)
+            break
+
+        except urllib2.URLError, e:
+            if str(e.reason) == 'timed out':
+                retries = retries + 1
+                timeout += 5
+
+        except urllib2.HTTPError, e:
+            print "Error code: %s" % e.code
+            raise
+
+    if retries == 3:
+        exit(1)
+
+    if re.match(r'^2[0-9][0-9]$', str(urlobj.code).strip()):
+        body = urlobj.read()
+        content = json.loads(body)
+
+    return content
 
 
 def check_mountpoint(device_name, basepath='/srv/node'):

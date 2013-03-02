@@ -18,6 +18,7 @@ else:
 # binaries now should contain a dictionary like this
 # {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
 
+
 def execute(cmd):
     """
     Formats the output of the perc800 controller command that is given back by
@@ -31,9 +32,11 @@ def execute(cmd):
 
     args = shlex.split(cmd)
     try:
-        p = subprocess.Popen(args, stdin=subprocess.PIPE,
+        p = subprocess.Popen(args,
+                             stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, close_fds=True)
+                             stderr=subprocess.STDOUT,
+                             close_fds=True)
     except:
         raise
 
@@ -51,7 +54,7 @@ def execute(cmd):
     return lines
 
 
-def get_device_info(controller, device):
+def get_drive_info(controller, device):
     """
     Collects information about a device on provided controller & device
 
@@ -109,52 +112,38 @@ def get_device_info(controller, device):
     return results
 
 
-def remove_device(binary, controller, device):
+def remove_device(controller, device):
+    # TODO: Check on device xfs errors and bad mount. mtab
     """
-    Starts the process to remove device from the controller
-    port that is provided. Turns the indicator light for the
-    port and if everything goes well there it will go ahead
-    and attempt to have the device removed.
+    Remove a device from the controller given a specific port. Turns the
+    indicator light on for the port and, if everything goes well, it will go
+    ahead and attempt to have the device removed.
 
-    TODO: Check on device xfs errors and bad mount. mtab
+    :param controller: The controller id.
+    :param device: A dictionary with device details coming from get_drive_info
 
-    :param binary: Location where the controller binary exists
-    :param controller: The controller name/index
-    :param device: A dictionary with device details
-
-    :returns: A dictionary that includes an error code and message.
+    :returns: A boolean value that reflects the result of the operation.
     """
-    results = {'code': 0}
-
-    """
-    First try to turn the indicator light on for the device port
-    """
+    # First try to turn the indicator light on for the device port
     indicator_cmd = '%s storage pdisk action=blink controller=%s pdisk=%s' \
-        % (binary['omconfig'], controller, device['port'])
+        % (binaries['omconfig'], controller, device['port'])
     indicator_result = execute(indicator_cmd)
     if not 'Command successful!' in indicator_result[0]:
-        results['code'] = 300
-        msg = ("Error: Failed to turn the indicator light on for pdisk %s. "
-               "Removal of device %s on controller %s failed (2) \n\t"
-               "Returned error, %s ") % (device['port'], device['name'],
+        msg = ("Failed to turn the indicator light on for pdisk %s. "
+               "Removal of device %s on controller %s failed \n\t"
+               "Returned error: %s ") % (device['port'], device['name'],
                                          controller, indicator_result[0])
-        results['message'] = msg
-        return results
+        utils.exit(msg)
 
-    """
-    If all goes well then proceed with removing the device unit
-    """
+    # If all goes well then proceed with removing the device unit
     removal_cmd = '%s storage vdisk action=deletevdisk controller=%s vdisk=%s' \
-        % (binary['omconfig'], controller, device['unit'])
+        % (binaries['omconfig'], controller, device['unit'])
     removal_result = execute(removal_cmd)
     if not 'Command successful!' in removal_result[0]:
-        results['code'] = 300
         msg = ("Error: Failed to remove unit %s from controller %s "
                "for device %s and pdisk %s \n\t"
                "Returned error, %s ") % (device['unit'], controller,
                                          device['name'], device['port'],
                                          removal_result[0])
-        results['message'] = msg
-    else:
-        results['message'] = removal_result[0]
-    return results
+        utils.exit(msg)
+    return True
