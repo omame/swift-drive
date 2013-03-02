@@ -1,6 +1,4 @@
 import re
-import shlex
-import subprocess
 from swift_drive.common import utils, config
 
 COMMANDS = ['omconfig', 'omreport']
@@ -19,41 +17,6 @@ else:
 # {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
 
 
-def execute(cmd):
-    """
-    Formats the output of the perc800 controller command that is given back by
-    the subprocess.
-
-    :param cmd: The command that should be passed over to the subprocess call.
-    :returns: An array with the line output.
-    """
-    if isinstance(cmd, unicode):
-        cmd = cmd.encode('utf8')
-
-    args = shlex.split(cmd)
-    try:
-        p = subprocess.Popen(args,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT,
-                             close_fds=True)
-    except:
-        raise
-
-    output = p.stdout.read()
-
-    lines = []
-    for x in output.strip().split('\n'):
-        if not re.match(r'^$', x):
-            lines.append(x)
-
-    if len(lines) == 0:
-        msg = ("Zero Error: command returned no lines.\n(Cmd: %s) ") % cmd
-        lines.append(msg)
-
-    return lines
-
-
 def get_drive_info(controller, device):
     """
     Collects information about a device on provided controller & device
@@ -69,11 +32,11 @@ def get_drive_info(controller, device):
     results = {}
     pdisk = {}
     vdisk = {}
-    for name in 'pdisk', 'vdisk':  # <-- BOOKMARK
+    for name in 'pdisk', 'vdisk':
         d = eval(name)
         cmd = '%s storage %s controller=%s vdisk=%s' % \
               (binaries['omreport'], name, controller, device['unit'])
-        res = execute(cmd)
+        res = utils.execute(cmd)
         # Exit if we catch an error message
         if re.match(r'^Error:*', res[0]):
             msg = ("Error: Unable to get drive info for device%s\n\t"
@@ -127,23 +90,81 @@ def remove_device(controller, device):
     # First try to turn the indicator light on for the device port
     indicator_cmd = '%s storage pdisk action=blink controller=%s pdisk=%s' \
         % (binaries['omconfig'], controller, device['port'])
-    indicator_result = execute(indicator_cmd)
+    indicator_result = utils.execute(indicator_cmd)
     if not 'Command successful!' in indicator_result[0]:
         msg = ("Failed to turn the indicator light on for pdisk %s. "
-               "Removal of device %s on controller %s failed \n\t"
-               "Returned error: %s ") % (device['port'], device['name'],
-                                         controller, indicator_result[0])
+               "Removal of device %s on controller %s failed \n"
+               "Error: %s ") % (device['port'], device['name'],
+                                controller, indicator_result[0])
         utils.exit(msg)
 
     # If all goes well then proceed with removing the device unit
     removal_cmd = '%s storage vdisk action=deletevdisk controller=%s vdisk=%s' \
         % (binaries['omconfig'], controller, device['unit'])
-    removal_result = execute(removal_cmd)
+    removal_result = utils.execute(removal_cmd)
     if not 'Command successful!' in removal_result[0]:
         msg = ("Error: Failed to remove unit %s from controller %s "
-               "for device %s and pdisk %s \n\t"
-               "Returned error, %s ") % (device['unit'], controller,
-                                         device['name'], device['port'],
-                                         removal_result[0])
+               "for device %s and pdisk %s\n"
+               "Error: %s ") % (device['unit'], controller, device['name'],
+                                device['port'], removal_result[0])
+        utils.exit(msg)
+    return True
+
+
+def add_device(controller, device):
+    """
+    Add a device back into the system.
+
+    :param controller: The controller id.
+    :param device: A dictionary with device details coming from get_drive_info
+
+    :returns: A boolean value that reflects the result of the operation.
+    """
+    device_path = '/dev/' + device['name'] + 'p'  # TOREVIEW
+
+    # Should check if there is a replace operation in progress. TODO
+    # Should also allow --force to override. TODO
+
+    # Sometimes after a drive has been swapped the vdisk is still present.
+    # We need to check if this is the case and clean up if necessary.
+    if get_drive_info(controller, device)['vdisk'].keys():  # TOCHECK
+        removed_device = remove_device(controller, device)
+        if removed_device['code']:
+            msg = ("Cannot delete the vdisk after a drive swap.\n"
+                   "Port: %s, Controller: %s\n"
+                   "Error: %s ") % (device['port'], controller,
+                                    removed_device['message'])
+            utils.exit(msg)
+
+    # Now that we cleaned up the vdisk we can move on and create the new one
+    add_cmd = '%s storage controller action=createvdisk controller=%s ' \
+        'pdisk=%s raid=r0 size=max stripesize=64kb diskcachepolicy=disabled ' \
+        'readpolicy=ara writepolicy=wb' % \
+        (binaries['omconfig'], controller, device['port'])
+    add_result = utils.execute(add_cmd)
+    if not 'Command successful!' in add_result[0]:
+        msg = ("Cannot add disk number %s on controller %s.\n"
+               "Error: %s ") % (device['port'], controller, str(add_result))
+        utils.exit(msg)
+
+    """
+    Device added, so partition and format it
+    """
+    utils.format_drive(device_path, '3T')
+    """
+    Now let's mount the device back into the system
+    """
+    utils.add_mountpoint()
+    """
+    Let's go ahead and turn the indicator light off
+    """
+    indicator_cmd = '%s storage pdisk action=unblink controller=%s pdisk=%s' \
+        % (binaries['omconfig'], controller, device['port'])
+    indicator_result = utils.execute(indicator_cmd)
+    if not 'Command successful!' in indicator_result[0]:
+        msg = ("Error: Failed to turn the indicator light off "
+               "for pdisk %s on controller %s.\n"
+               "Error: %s ") % (device['port'], controller,
+                                indicator_result[0])
         utils.exit(msg)
     return True
