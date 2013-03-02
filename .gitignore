@@ -7,3 +7,4 @@ swift-drive.substvars
 swift-drive.conf
 swift-drive.conf-sample
 core.py
+*.pyc
