@@ -1,0 +1,17 @@
+[swift-drive]
+# Mandatory: The plugin to load in order to interact with the controller
+controller = perc800
+
+# Optional: Specify the absolute path only if the binaries are not in $PATH
+#controller_binaries =
+
+# Mandatory: The backend plugin to store all the needed information
+backend = swift
+
+# Optional: If you would like to use a ticketing system to raise and close
+#           tickets every time something happens, specify the module here
+# ticketing = rt
+
+# Optional: If you would like to get notified when something happens,
+#           specify the notification module here
+# notification = email
