@@ -17,30 +17,31 @@ else:
 # {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
 
 
-def get_drive_info(controller, device):
+def get_drive_info(controller, vdisk_id):
     """
     Collects information about a device on provided controller & device
 
-    :param binary: Location of the controller binaries.
     :param controller: The controller index.
-    :param device: A dictionary with device details.  <-- TOREVIEW
+    :param vdisk_id: The id of the vdisk to get the information for.
     :returns: A dictionary that contains two dictionaries with the collected
               information about the device.
     """
     # TODO: All those exits should trigger a notification. I think this should
     #       be handled by utils.exit, not here.
+    controller = str(controller)
+    vdisk_id = str(vdisk_id)
     results = {}
     pdisk = {}
     vdisk = {}
     for name in 'pdisk', 'vdisk':
         d = eval(name)
         cmd = '%s storage %s controller=%s vdisk=%s' % \
-              (binaries['omreport'], name, controller, device['unit'])
+              (binaries['omreport'], name, controller, vdisk_id)
         res = utils.execute(cmd)
         # Exit if we catch an error message
         if re.match(r'^Error:*', res[0]):
-            msg = ("Error: Unable to get drive info for device%s\n\t"
-                   "Returned error, %s ") % (device['name'], res[0])
+            msg = ("Error: Unable to get drive info for vdisk %s\n"
+                   "Omreport error: %s") % (vdisk_id, res[0])
             utils.exit(msg)
         else:
             # We need the slot, otherwise is pointless to go any further
@@ -50,7 +51,7 @@ def get_drive_info(controller, device):
                 msg = ("Error: can't fetch the slot number.\n"
                        "Probably the drive has been removed already.\n\n"
                        "Controller: %s, unit: %s") % (controller,
-                                                      device['unit'])
+                                                      vdisk_id)
                 utils.exit(msg)
 
             # We can split everything after the second element by ':'
@@ -111,7 +112,7 @@ def remove_device(controller, device):
     return True
 
 
-def add_device(controller, device):
+def add_device(controller, device, format=True):
     """
     Add a device back into the system.
 
@@ -120,6 +121,8 @@ def add_device(controller, device):
 
     :returns: A boolean value that reflects the result of the operation.
     """
+    controller = str(controller)
+    vdisk_id = str(vdisk_id)
     device_path = '/dev/' + device['name'] + 'p'  # TOREVIEW
 
     # Should check if there is a replace operation in progress. TODO
@@ -150,7 +153,8 @@ def add_device(controller, device):
     """
     Device added, so partition and format it
     """
-    utils.format_drive(device_path, '3T')
+    if format:
+        utils.format_drive(device_path, '3T')
     """
     Now let's mount the device back into the system
     """

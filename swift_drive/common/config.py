@@ -1,4 +1,5 @@
 from ConfigParser import ConfigParser
+from swift_drive.common.utils import exit
 
 
 def get_config(key, config_file='/etc/swift-drive/swift-drive.conf'):
@@ -10,10 +11,10 @@ def get_config(key, config_file='/etc/swift-drive/swift-drive.conf'):
     :returns: The value for the requested key.
     """
     c = ConfigParser()
-    if not c.read(config_file):
-        print "Unable to read config file: %s" % config_file
-        exit(1)
     try:
+        if not c.read(config_file):
+            print "Unable to read config file: %s" % config_file
+            exit(1)
         return str(c.get('swift-drive', key))
     except:
         return False
