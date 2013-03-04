@@ -76,7 +76,7 @@ def get_drive_info(controller, vdisk_id):
     return results
 
 
-def remove_device(controller, device):
+def remove_device(controller, vdisk_id, pdisk_id):
     # TODO: Check on device xfs errors and bad mount. mtab
     """
     Remove a device from the controller given a specific port. Turns the
@@ -84,59 +84,60 @@ def remove_device(controller, device):
     ahead and attempt to have the device removed.
 
     :param controller: The controller id.
-    :param device: A dictionary with device details coming from get_drive_info
-
-    :returns: A boolean value that reflects the result of the operation.
-    """
-    # First try to turn the indicator light on for the device port
-    indicator_cmd = '%s storage pdisk action=blink controller=%s pdisk=%s' \
-        % (binaries['omconfig'], controller, device['port'])
-    indicator_result = utils.execute(indicator_cmd)
-    if not 'Command successful!' in indicator_result[0]:
-        msg = ("Failed to turn the indicator light on for pdisk %s. "
-               "Removal of device %s on controller %s failed \n"
-               "Error: %s ") % (device['port'], device['name'],
-                                controller, indicator_result[0])
-        utils.exit(msg)
-
-    # If all goes well then proceed with removing the device unit
-    removal_cmd = '%s storage vdisk action=deletevdisk controller=%s vdisk=%s' \
-        % (binaries['omconfig'], controller, device['unit'])
-    removal_result = utils.execute(removal_cmd)
-    if not 'Command successful!' in removal_result[0]:
-        msg = ("Error: Failed to remove unit %s from controller %s "
-               "for device %s and pdisk %s\n"
-               "Error: %s ") % (device['unit'], controller, device['name'],
-                                device['port'], removal_result[0])
-        utils.exit(msg)
-    return True
-
-
-def add_device(controller, device, format=True):
-    """
-    Add a device back into the system.
-
-    :param controller: The controller id.
-    :param device: A dictionary with device details coming from get_drive_info
-
+    :param vdisk_id: The id of the vdisk to remove.
+    :param pdisk_id: The id of the pdisk to remove.
     :returns: A boolean value that reflects the result of the operation.
     """
     controller = str(controller)
     vdisk_id = str(vdisk_id)
-    device_path = '/dev/' + device['name'] + 'p'  # TOREVIEW
+    # First try to turn the indicator light on for the device port
+    indicator_cmd = '%s storage pdisk action=blink controller=%s pdisk=%s' \
+        % (binaries['omconfig'], controller, pdisk_id)
+    indicator_result = utils.execute(indicator_cmd)
+    if not 'Command successful!' in indicator_result[0]:
+        msg = ("Failed to turn the indicator light on for pdisk %s. "
+               "Removal of device on controller %s failed.\n"
+               "Omconfig error: %s ") % (pdisk_id, controller,
+                                         indicator_result[0])
+        utils.exit(msg)
+
+    # If all goes well then proceed with removing the device unit
+    removal_cmd = ('%s storage vdisk action=deletevdisk controller=%s '
+                   'vdisk=%s' % (binaries['omconfig'], controller, vdisk_id))
+    removal_result = utils.execute(removal_cmd)
+    if not 'Command successful!' in removal_result[0]:
+        msg = ("Error: Failed to remove vdisk %s from "
+               "controller %s for pdisk %s\n"
+               "Omconfig error: %s ") % (vdisk_id, controller,
+                                         pdisk_id, removal_result[0])
+        utils.exit(msg)
+    return True
+
+
+def add_device(controller, vdisk_id, pdisk_id=None, format=True):
+    """
+    Add a device back into the system.
+
+    :param controller: The controller id.
+    :param vdisk_id: The id of the vdisk to add.
+    :param pdisk_id: The id of the pdisk to add. If left to None we will need
+                     to fetch its value from the backend.
+    :returns: A boolean value that reflects the result of the operation.
+    """
+    controller = str(controller)
+    vdisk_id = str(vdisk_id)
+    device_path = '/dev/c%su%sp' & (controller, vdisk_id)
 
     # Should check if there is a replace operation in progress. TODO
     # Should also allow --force to override. TODO
 
     # Sometimes after a drive has been swapped the vdisk is still present.
     # We need to check if this is the case and clean up if necessary.
-    if get_drive_info(controller, device)['vdisk'].keys():  # TOCHECK
-        removed_device = remove_device(controller, device)
+    if get_drive_info(controller, vdisk_id)['vdisk'].keys():  # TOCHECK
+        removed_device = remove_device(controller, vdisk_id)
         if removed_device['code']:
-            msg = ("Cannot delete the vdisk after a drive swap.\n"
-                   "Port: %s, Controller: %s\n"
-                   "Error: %s ") % (device['port'], controller,
-                                    removed_device['message'])
+            msg = ("Cannot delete the vdisk. Controller: %s\n"
+                   "Error: %s ") % (controller, removed_device['message'])
             utils.exit(msg)
 
     # Now that we cleaned up the vdisk we can move on and create the new one

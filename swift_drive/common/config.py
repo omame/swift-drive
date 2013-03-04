@@ -18,3 +18,4 @@ def get_config(key, config_file='/etc/swift-drive/swift-drive.conf'):
         return str(c.get('swift-drive', key))
     except:
         return False
+
