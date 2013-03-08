@@ -88,15 +88,12 @@ def remove_device(controller, vdisk_id, pdisk_id):
     controller = str(controller)
     vdisk_id = str(vdisk_id)
     # First try to turn the indicator light on for the device port
-    indicator_cmd = '%s storage pdisk action=blink controller=%s pdisk=%s' \
-        % (binaries['omconfig'], controller, pdisk_id)
-    indicator_result = utils.execute(indicator_cmd)
-    if not 'Command successful!' in indicator_result[0]:
-        msg = ("Failed to turn the indicator light on for pdisk %s. "
-               "Removal of device on controller %s failed.\n"
-               "Omconfig error: %s ") % (pdisk_id, controller,
-                                         indicator_result[0])
-        utils.exit(msg)
+    try:
+        led('blink', controller, pdisk_id)
+    except:
+        # We'll just pass for now. In the future it'd be cool to get
+        # notified when this happens. TODO
+        pass
 
     # If all goes well then proceed with removing the device unit
     removal_cmd = ('%s storage vdisk action=deletevdisk controller=%s '
@@ -119,6 +116,7 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     :param vdisk_id: The id of the vdisk to add.
     :param pdisk_id: The id of the pdisk to add. If left to None we will need
                      to fetch its value from the backend.
+    :param format: Specifies wheter or not the drive should be formatted.
     :returns: A boolean value that reflects the result of the operation.
     """
     controller = str(controller)
@@ -126,7 +124,11 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     device_path = '/dev/c%su%sp' & (controller, vdisk_id)
     drive_info = get_drive_info(controller, vdisk_id)
 
-    # Should check if there is a replace operation in progress. TODO
+    # Check if there is a replace operation in progress. INPROGRESS
+    # Backend still needs to be develped.
+    backend_info = backend.get_drive_info(vdisk_id, in_inprogress=True)
+    pdisk_id = backend_info['pdisk']
+
     # Should also allow --force to override. TODO
 
     # Sometimes after a drive has been swapped the vdisk is recreated right
@@ -138,11 +140,11 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     add_cmd = '%s storage controller action=createvdisk controller=%s ' \
         'pdisk=%s raid=r0 size=max stripesize=64kb diskcachepolicy=disabled ' \
         'readpolicy=ara writepolicy=wb' % \
-        (binaries['omconfig'], controller, device['port'])
+        (binaries['omconfig'], controller, drive_info['port'])
     add_result = utils.execute(add_cmd)
     if not 'Command successful!' in add_result[0]:
-        msg = ("Cannot add disk number %s on controller %s.\n"
-               "Error: %s ") % (device['port'], controller, str(add_result))
+        msg = ("Cannot add disk on port %s for controller %s.\n"
+               "Error: %s ") % (drive_info['port'], controller, str(add_result))
         utils.exit(msg)
 
     """
@@ -157,13 +159,34 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     """
     Let's go ahead and turn the indicator light off
     """
-    indicator_cmd = '%s storage pdisk action=unblink controller=%s pdisk=%s' \
-        % (binaries['omconfig'], controller, device['port'])
+    try:
+        led('unblink', controller, pdisk_id)
+    except:
+        # We'll just pass for now. In the future it'd be cool to get
+        # notified when this happens. TODO
+        pass
+    return True
+
+
+def led(action, controller, pdisk_id):
+    '''
+    Switfh on or off the indicator led for a particular pdisk.
+
+    :param action: The action to take.
+    :param controller: The controller id.
+    :param pdisk_id: The pdisk id (also known as port).
+    :returns: A boolean value that reflects the result of the operation.
+    '''
+    # TODO: the action should be normalized by a common funcion to be able to
+    # use any command: 1, on, blink, whatever.
+
+    indicator_cmd = '%s storage pdisk action=%s controller=%s pdisk=%s' \
+        % (binaries['omconfig'], action, controller, pdisk_id)
     indicator_result = utils.execute(indicator_cmd)
     if not 'Command successful!' in indicator_result[0]:
         msg = ("Error: Failed to turn the indicator light off "
                "for pdisk %s on controller %s.\n"
-               "Error: %s ") % (device['port'], controller,
+               "Error: %s ") % (pdisk_id, controller,
                                 indicator_result[0])
-        utils.exit(msg)
+        raise Exception(msg)
     return True
