@@ -2,6 +2,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import urllib2
 try:
     from simplejson import json
@@ -54,7 +55,7 @@ def exit(msg, error_code=1):
     :error_code: Exit code
     '''
     print msg
-    exit(error_code)
+    sys.exit(error_code)
 
 
 def get_binaries(binaries):

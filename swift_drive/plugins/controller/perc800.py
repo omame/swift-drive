@@ -24,7 +24,7 @@ def get_drive_info(controller, vdisk_id):
     :param controller: The controller index.
     :param vdisk_id: The id of the vdisk to get the information for.
     :returns: A dictionary that contains two dictionaries with the collected
-              information about the device.
+              relevant information about the device.
     """
     # TODO: All those exits should trigger a notification. I think this should
     #       be handled by utils.exit, not here.
@@ -44,13 +44,14 @@ def get_drive_info(controller, vdisk_id):
                    "Omreport error: %s") % (vdisk_id, res[0])
             utils.exit(msg)
         else:
-            # We need the slot, otherwise is pointless to go any further
+            # The perc controller is attached to a slot and we need to know
+            # its id otherwise is pointless to go any further
             try:
                 d['slot'] = re.findall(r'Slot \d', res[1])[0][-1]
             except:
                 msg = ("Error: can't fetch the slot number.\n"
-                       "Probably the drive has been removed already.\n\n"
-                       "Controller: %s, unit: %s") % (controller,
+                       "Probably the drive has been removed already.\n"
+                       "Controller: %s, vdisk: %s") % (controller,
                                                       vdisk_id)
                 utils.exit(msg)
 
@@ -59,13 +60,9 @@ def get_drive_info(controller, vdisk_id):
             for e in res[2:]:
                 k, v = e.split(':', 1)
                 d[k.lower().strip()] = v.lower().strip()
+            results['%s_status' % name] = d['status']
         name = d
 
-    # Set the global status for the drive
-    if (pdisk['status'] != 'ok' or vdisk['status'] != 'ok'):
-        results['status'] = 'failed'
-    else:
-        results['status'] = 'OK'
     results['port'] = pdisk['id']
     results['serial'] = pdisk['serial no.']
     results['model'] = pdisk['product id']
@@ -127,18 +124,15 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     controller = str(controller)
     vdisk_id = str(vdisk_id)
     device_path = '/dev/c%su%sp' & (controller, vdisk_id)
+    drive_info = get_drive_info(controller, vdisk_id)
 
     # Should check if there is a replace operation in progress. TODO
     # Should also allow --force to override. TODO
 
-    # Sometimes after a drive has been swapped the vdisk is still present.
-    # We need to check if this is the case and clean up if necessary.
-    if get_drive_info(controller, vdisk_id)['vdisk'].keys():  # TOCHECK
-        removed_device = remove_device(controller, vdisk_id)
-        if removed_device['code']:
-            msg = ("Cannot delete the vdisk. Controller: %s\n"
-                   "Error: %s ") % (controller, removed_device['message'])
-            utils.exit(msg)
+    # Sometimes after a drive has been swapped the vdisk is recreated right
+    # away. We need to check this and clean up if necessary.
+    if drive_info['vdisk_status']:  # TOCHECK
+        remove_device(controller, vdisk_id)
 
     # Now that we cleaned up the vdisk we can move on and create the new one
     add_cmd = '%s storage controller action=createvdisk controller=%s ' \
