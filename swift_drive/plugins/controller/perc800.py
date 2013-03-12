@@ -52,7 +52,7 @@ def get_drive_info(controller, vdisk_id):
                 msg = ("Error: can't fetch the slot number.\n"
                        "Probably the drive has been removed already.\n"
                        "Controller: %s, vdisk: %s") % (controller,
-                                                      vdisk_id)
+                                                       vdisk_id)
                 utils.exit(msg)
 
             # We can split everything after the second element by ':'
@@ -121,14 +121,17 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     """
     controller = str(controller)
     vdisk_id = str(vdisk_id)
-    device_path = '/dev/c%su%sp' & (controller, vdisk_id)
+    device_path = '/dev/c%su%sp' % (controller, vdisk_id)
     drive_info = get_drive_info(controller, vdisk_id)
 
     # Check if there is a replace operation in progress. INPROGRESS
     # Backend still needs to be develped.
     backend_info = backend.get_drive_info(vdisk_id, in_inprogress=True)
     pdisk_id = backend_info['pdisk']
-
+    if backend_info['inprogress'] == True:
+        pass
+    else:
+        pass
     # Should also allow --force to override. TODO
 
     # Sometimes after a drive has been swapped the vdisk is recreated right
