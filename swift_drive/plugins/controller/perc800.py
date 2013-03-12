@@ -51,8 +51,7 @@ def get_drive_info(controller, vdisk_id):
             except:
                 msg = ("Error: can't fetch the slot number.\n"
                        "Probably the drive has been removed already.\n"
-                       "Controller: %s, vdisk: %s") % (controller,
-                                                       vdisk_id)
+                       "Controller: %s, vdisk: %s") % (controller, vdisk_id)
                 utils.exit(msg)
 
             # We can split everything after the second element by ':'

@@ -13,5 +13,11 @@ backend = swift
 # ticketing = rt
 
 # Optional: If you would like to get notified when something happens,
-#           specify the notification module here
-# notification = email
+#           specify the notification modules here (comma separated list)
+notifications = email
+
+# Specific: List of the recipients to notify by email (comma separated list)
+notification_email_recipients = prowl@alerts.valeriani.co.uk,daniele@valeriani.co.uk
+
+# Specific: The sender address for the email notifications
+# notification_email_sender =
