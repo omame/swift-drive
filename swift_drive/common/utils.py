@@ -10,6 +10,7 @@ try:
 except ImportError:
     import json
 
+
 def get_hostname():
     return socket.gethostname()
 

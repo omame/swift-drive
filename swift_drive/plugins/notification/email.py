@@ -4,7 +4,7 @@
 
 import smtplib
 from swift_drive.common.config import get_config
-#from swift_drive.common.utils import get_hostname
+from swift_drive.common.utils import get_hostname
 #from swift_drive.common.template import get_template
 
 
