@@ -1,5 +1,6 @@
 import re
 from swift_drive.common import utils
+from swift_drive.common import disk
 from swift_drive.common.config import get_config
 
 COMMANDS = ['omconfig', 'omreport']
@@ -160,11 +161,11 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     Device added, so partition and format it
     """
     if format:
-        utils.format_drive(device_path, '3T')
+        disk.format_drive(device_path, '3T')
     """
     Now let's mount the device back into the system
     """
-    utils.add_mountpoint()
+    disk.add_mountpoint()
     """
     Let's go ahead and turn the indicator light off
     """
