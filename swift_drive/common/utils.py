@@ -5,6 +5,8 @@ import socket
 import subprocess
 import sys
 import urllib2
+from swift_drive.plugins.notification import *
+from swift_drive.common.config import get_config
 try:
     from simplejson import json
 except ImportError:
@@ -59,17 +61,14 @@ def exit(message, subject='', error_code=1):
     :msg: Message to be returned
     :error_code: Exit code
     '''
-    from swift_drive.plugins.notification import *
-    from swift_drive.common.config import get_config
-
-    notification_types = get_config('notifications').split(',')
+    notification_types = get_config()['notifications'].split(',')
     for notification in notification_types:
-        try:
-            eval(notification).send_notification(msg, subject=subject)
-        except:
-            raise Exception('Error: notification type not found')
+        # try:
+        eval(notification).send_notification(subject, message)
+        # except:
+            # raise Exception('Error: notification type not found')
     print message
-    sys.exit(error_code)
+    # sys.exit(error_code)
 
 
 def get_binaries(binaries):

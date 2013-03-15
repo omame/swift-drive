@@ -4,21 +4,31 @@
 
 import smtplib
 from swift_drive.common.config import get_config
-from swift_drive.common.utils import get_hostname
 #from swift_drive.common.template import get_template
 
 
 def send_notification(subject, msg):
     # Get the list of recipients from the config file.
     # The option is notification_email_recipients
+    from swift_drive.common.utils import get_hostname
     hostname = get_hostname()
-    recipients = get_config('notification_email_recipients').split(',')
-    sender = get_config('notification_email_from')
-    if not sender:
+    config = get_config()
+    # Get the recipients from the configuration. We can't go any further
+    # without any.
+    try:
+        recipients = config['notification_email_recipients'].split(',')
+    except:
+        raise Exception('Error: could not find any recipients in the '
+                        'configuration file. Please configure at least one.')
+
+    # Check if there is a specific sender configured.
+    try:
+        sender = config['notification_email_from']
+    except:
         sender = 'alert@swift-drive.com'
 
     try:
-        message = subject + msg
+        message = '[swift-drive] - ' + hostname + ' - ' + subject + msg
         server = smtplib.SMTP('localhost')
         server.set_debuglevel(0)
         server.sendmail(sender, recipients, message)

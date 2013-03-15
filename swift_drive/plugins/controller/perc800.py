@@ -1,18 +1,25 @@
 import re
-from swift_drive.common import utils, config
+from swift_drive.common import utils
+from swift_drive.common.config import get_config
 
 COMMANDS = ['omconfig', 'omreport']
+
+
+class BinariesError(Exception):
+    pass
 
 # First of all check if omreport and omconfig are usable.
 # We need to check if there is an override in the config file and create
 # a dictionary with the specified binaries
-binaries = config.get_config('controller_binaries', 'etc/swift-drive.conf-sample')
-if binaries:
+config = get_config()
+try:
+    binaries = config['controller_binaries']
     binaries = dict([(a.split('/')[-1], a) for a in binaries.split(', ')])
-else:
+except Exception, e:
     binaries = utils.get_binaries(COMMANDS)
     if COMMANDS != sorted(binaries.keys()):
-        utils.exit('Error locating binaries for the perc800 controller motule')
+        raise BinariesError("Error trying to locate the omtools "
+                            "binaries: %s" % e)
 # binaries now should contain a dictionary like this
 # {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
 
@@ -125,13 +132,13 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
 
     # Check if there is a replace operation in progress. INPROGRESS
     # Backend still needs to be develped.
+    # Should also allow --force to override. TODO
     backend_info = backend.get_drive_info(vdisk_id, in_inprogress=True)
     pdisk_id = backend_info['pdisk']
     if backend_info['inprogress'] == True:
         pass
     else:
         pass
-    # Should also allow --force to override. TODO
 
     # Sometimes after a drive has been swapped the vdisk is recreated right
     # away. We need to check this and clean up if necessary.
@@ -167,20 +174,24 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
         # We'll just pass for now. In the future it'd be cool to get
         # notified when this happens. TODO
         pass
-    return True
+    return
 
 
 def led(action, controller, pdisk_id):
     '''
-    Switfh on or off the indicator led for a particular pdisk.
+    Switch on or off the indicator led for a specific pdisk.
 
-    :param action: The action to take.
+    :param action: The action to take. Could be blink|unblink, on|off or 0|1.
     :param controller: The controller id.
-    :param pdisk_id: The pdisk id (also known as port).
+    :param pdisk_id: The pdisk id (also known as port). Example: 1:0:18
     :returns: A boolean value that reflects the result of the operation.
     '''
-    # TODO: the action should be normalized by a common funcion to be able to
-    # use any command: 1, on, blink, whatever.
+    if action in ['on', 'blink', 1]:
+        action = 'blink'
+    elif action in ['off', 'unblink', 0]:
+        action = 'unblink'
+    else:
+        raise Exception('Operation not recognised')
 
     indicator_cmd = '%s storage pdisk action=%s controller=%s pdisk=%s' \
         % (binaries['omconfig'], action, controller, pdisk_id)
@@ -191,4 +202,4 @@ def led(action, controller, pdisk_id):
                "Error: %s ") % (pdisk_id, controller,
                                 indicator_result[0])
         raise Exception(msg)
-    return True
+    return
