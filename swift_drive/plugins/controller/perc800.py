@@ -80,7 +80,7 @@ def get_drive_info(controller, vdisk_id):
     return results
 
 
-def remove_device(controller, vdisk_id, pdisk_id):
+def remove_device(controller, vdisk_id):
     # TODO: Check on device xfs errors and bad mount. mtab
     """
     Remove a device from the controller given a specific port. Turns the
@@ -94,6 +94,9 @@ def remove_device(controller, vdisk_id, pdisk_id):
     """
     controller = str(controller)
     vdisk_id = str(vdisk_id)
+    device_id = 'c%su%s' % (controller, vdisk_id)
+    drive_info = get_drive_info(controller, vdisk_id)
+    pdisk_id = drive_info['port']
     # First try to turn the indicator light on for the device port
     try:
         led('blink', controller, pdisk_id)
@@ -101,6 +104,13 @@ def remove_device(controller, vdisk_id, pdisk_id):
         # We'll just pass for now. In the future it'd be cool to get
         # notified when this happens. TODO
         pass
+
+    # Then check if the device is not mounted
+    if disk.is_mounted(device_id):
+        try:
+            disk.umount(device_id)
+        except Exception, e:
+            utils.exit(e)
 
     # If all goes well then proceed with removing the device unit
     removal_cmd = ('%s storage vdisk action=deletevdisk controller=%s '
@@ -112,10 +122,9 @@ def remove_device(controller, vdisk_id, pdisk_id):
                "Omconfig error: %s ") % (vdisk_id, controller,
                                          pdisk_id, removal_result[0])
         utils.exit(msg)
-    return True
 
 
-def add_device(controller, vdisk_id, pdisk_id=None, format=True):
+def add_device(controller, vdisk_id, format=True):
     """
     Add a device back into the system.
 
@@ -128,33 +137,35 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     """
     controller = str(controller)
     vdisk_id = str(vdisk_id)
-    device_path = '/dev/c%su%sp' % (controller, vdisk_id)
-    drive_info = get_drive_info(controller, vdisk_id)
+    device_id = 'c%su%s' % (controller, vdisk_id)
+    device_path = '/dev/%sp' % device_id  # Note the trailing 'p'
+    # drive_info = get_drive_info(controller, vdisk_id)
 
     # Check if there is a replace operation in progress. INPROGRESS
     # Backend still needs to be develped.
     # Should also allow --force to override. TODO
-    backend_info = backend.get_drive_info(vdisk_id, in_inprogress=True)
-    pdisk_id = backend_info['pdisk']
-    if backend_info['inprogress'] == True:
-        pass
-    else:
-        pass
-
+    # backend_info = backend.get_drive_info(vdisk_id, in_inprogress=True)
+    # pdisk_id = backend_info['pdisk']
+    # if backend_info['inprogress'] == True:
+    #     pass
+    # else:
+    #     pass
+    # pdisk_id = drive_info['port']
+    pdisk_id = '0:0:23'
     # Sometimes after a drive has been swapped the vdisk is recreated right
     # away. We need to check this and clean up if necessary.
-    if drive_info['vdisk_status']:  # TOCHECK
-        remove_device(controller, vdisk_id)
+    # if drive_info['vdisk_status']:  # TOCHECK
+    #     remove_device(controller, vdisk_id)
 
     # Now that we cleaned up the vdisk we can move on and create the new one
     add_cmd = '%s storage controller action=createvdisk controller=%s ' \
         'pdisk=%s raid=r0 size=max stripesize=64kb diskcachepolicy=disabled ' \
         'readpolicy=ara writepolicy=wb' % \
-        (binaries['omconfig'], controller, drive_info['port'])
+        (binaries['omconfig'], controller, pdisk_id)
     add_result = utils.execute(add_cmd)
     if not 'Command successful!' in add_result[0]:
-        msg = ("Cannot add disk on port %s for controller %s.\n"
-               "Error: %s ") % (drive_info['port'], controller, str(add_result))
+        msg = ("Cannot create vdisk on port %s for controller %s.\n"
+               "Error: %s ") % (pdisk_id, controller, str(add_result))
         utils.exit(msg)
 
     """
@@ -165,7 +176,7 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
     """
     Now let's mount the device back into the system
     """
-    disk.add_mountpoint()
+    disk.mount(device_id)
     """
     Let's go ahead and turn the indicator light off
     """
@@ -175,7 +186,6 @@ def add_device(controller, vdisk_id, pdisk_id=None, format=True):
         # We'll just pass for now. In the future it'd be cool to get
         # notified when this happens. TODO
         pass
-    return
 
 
 def led(action, controller, pdisk_id):
@@ -203,4 +213,3 @@ def led(action, controller, pdisk_id):
                "Error: %s ") % (pdisk_id, controller,
                                 indicator_result[0])
         raise Exception(msg)
-    return

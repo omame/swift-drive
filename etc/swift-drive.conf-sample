@@ -14,7 +14,7 @@ backend = swift
 
 # Optional: If you would like to get notified when something happens,
 #           specify the notification modules here (comma separated list)
-notifications = email
+#notifications = email
 
 # Specific: List of the recipients to notify by email (comma separated list)
 notification_email_recipients = prowl@alerts.valeriani.co.uk,daniele@valeriani.co.uk

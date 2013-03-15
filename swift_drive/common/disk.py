@@ -75,20 +75,19 @@ def mount(device_name, basepath='/srv/node'):
                          '/etc/fstab'])
     except:
         msg = 'Failed uncomment /etc/fstab for device %s.' % device_name
-        exit(msg)
+        raise Exception(msg)
     try:
         subprocess.call(['mount', mount_point])
     except:
         msg = 'Failed to mount device %s on mount point %s.' % \
               (device_name, mount_point)
-        exit(msg)
+        raise Exception(msg)
 
     try:
         subprocess.call(['chown', 'swift.swift', mount_point])
     except:
         msg = 'Failed to change ownership on mount point %s.' % mount_point
-        exit(msg)
-    return True
+        raise Exception(msg)
 
 
 def umount(device_name, basepath='/srv/node'):
@@ -103,11 +102,10 @@ def umount(device_name, basepath='/srv/node'):
     mount_point = os.path.join(basepath, device_name)
     try:
         subprocess.call(['umount', '-f', mount_point])
-        return True
     except:
         msg = ("Mount point %s is still available and could not be "
                "unmounted" % mount_point)
-        exit(msg)
+        raise Exception(msg)
 
 
 def format_drive(device_path, size):
@@ -137,11 +135,11 @@ def format_drive(device_path, size):
         if parted_result[0].startswith('Error:'):
             msg = ("Error: Unable to create partition table.\n"
                    "Parted error: %s") % (device_path, parted_result[0])
-            exit(msg)
+            raise Exception(msg)
     else:
         msg = ("Error: Device %s does not seem to exist when attempting to "
                "Format the drive. Please check") % device_path
-        exit(msg)
+        raise Exception(msg)
 
     # Now create filesystem on new partition
     partition_path = device_path + '1'
@@ -152,4 +150,3 @@ def format_drive(device_path, size):
         msg = ("Cannot create a filesystem on device %s"
                "Mkfs error: %s") % (device_path, mkfs_result[0])
         exit(msg)
-    return True
