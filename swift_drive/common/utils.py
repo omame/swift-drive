@@ -1,6 +1,7 @@
 import os
 import re
 import shlex
+import sys
 import socket
 import subprocess
 from swift_drive.plugins.notification import *
@@ -58,15 +59,15 @@ def exit(message, subject='', error_code=1):
     try:
         notification_types = get_config()['notifications'].split(',')
         for notification in notification_types:
-            # try:
-            eval(notification).send_notification(subject, message)
-            # except:
-                # raise Exception('Error: notification type not found')
+            try:
+                eval(notification).send_notification(subject, message)
+            except:
+                raise Exception('Error: notification type not found')
     except:
         # Nothing serious, just no need to notify
         pass
     print message
-    # sys.exit(error_code)
+    sys.exit(error_code)
 
 
 def get_binaries(binaries):

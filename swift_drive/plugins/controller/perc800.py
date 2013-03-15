@@ -138,7 +138,7 @@ def add_device(controller, vdisk_id, format=True):
     controller = str(controller)
     vdisk_id = str(vdisk_id)
     device_id = 'c%su%s' % (controller, vdisk_id)
-    device_path = '/dev/%sp' % device_id  # Note the trailing 'p'
+    device_name = device_id + 'p'
     # drive_info = get_drive_info(controller, vdisk_id)
 
     # Check if there is a replace operation in progress. INPROGRESS
@@ -151,7 +151,10 @@ def add_device(controller, vdisk_id, format=True):
     # else:
     #     pass
     # pdisk_id = drive_info['port']
+    ##### TEMPORARY
     pdisk_id = '0:0:23'
+    # remove_device(controller, vdisk_id)
+    #####
     # Sometimes after a drive has been swapped the vdisk is recreated right
     # away. We need to check this and clean up if necessary.
     # if drive_info['vdisk_status']:  # TOCHECK
@@ -172,7 +175,7 @@ def add_device(controller, vdisk_id, format=True):
     Device added, so partition and format it
     """
     if format:
-        disk.format_drive(device_path, '3T')
+        disk.format_drive(device_name, '3T', device_id)
     """
     Now let's mount the device back into the system
     """

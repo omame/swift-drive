@@ -69,13 +69,8 @@ def mount(device_name, basepath='/srv/node'):
     :returns: A boolean value that reflects the result of the operation.
     """
     mount_point = os.path.join(basepath, device_name)
-    try:
-        subprocess.call(['/bin/sed', '-i',
-                         '"s/^#LABEL=%s/LABEL=%s/"' % (device_name, device_name),
-                         '/etc/fstab'])
-    except:
-        msg = 'Failed uncomment /etc/fstab for device %s.' % device_name
-        raise Exception(msg)
+    subprocess.call(['/bin/sed', '-i', 's/^#LABEL=%s/LABEL=%s/' %
+                    (device_name, device_name), '/etc/fstab'])
     try:
         subprocess.call(['mount', mount_point])
     except:
@@ -108,7 +103,7 @@ def umount(device_name, basepath='/srv/node'):
         raise Exception(msg)
 
 
-def format_drive(device_path, size):
+def format_drive(device_name, size, label=None):
     '''
     Partition and format a drive in order to add it back to the syste.
     We assume that the partition label is identical to the device name and
@@ -116,10 +111,13 @@ def format_drive(device_path, size):
     options. Maybe in the future this will become configurable.
 
     :param device_path: The path for the device to format (it's usually
-                        something starting with /dev).
+                        something beginning with /dev).
     :param size: The size for the partition in mkfs format (eg. 600G, 3T).
     :returns: A boolean value that reflects the result of the operation.
     '''
+    device_path = '/dev/' + device_name
+    if label is None:
+        label = device_name
     # Check if the device exists before proceeding
     if os.path.exists(device_path):
         parted_label = '/sbin/parted -s ' + device_path + ' mklabel gpt'
@@ -129,9 +127,9 @@ def format_drive(device_path, size):
                    "Parted error: %s ") % (device_path, parted_result[0])
             exit(msg)
 
-        parted_part = '/sbin/parted -s %s mkpart primary xfs 0 %s' % \
-                      (device_path, size)
-        parted_result = execute(parted_part)
+        parted_partition = '/sbin/parted -s %s mkpart primary xfs 0 %s' % \
+                           (device_path, size)
+        parted_result = execute(parted_partition)
         if parted_result[0].startswith('Error:'):
             msg = ("Error: Unable to create partition table.\n"
                    "Parted error: %s") % (device_path, parted_result[0])
@@ -144,7 +142,7 @@ def format_drive(device_path, size):
     # Now create filesystem on new partition
     partition_path = device_path + '1'
     mkfs_cmd = '/sbin/mkfs.xfs -i size=1024 -d su=64k,sw=1 -f -L %s %s' % \
-        (device_path.split('/')[-1], partition_path)
+        (label, partition_path)
     mkfs_result = execute(mkfs_cmd)
     if mkfs_result[0].startswith('Cannot'):
         msg = ("Cannot create a filesystem on device %s"
