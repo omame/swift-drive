@@ -6,7 +6,12 @@ controller = perc800
 #controller_binaries =
 
 # Mandatory: The backend plugin to store all the needed information
-backend = swift
+backend = sqlite
+
+# SQLite specific parameters
+#
+# Db location
+sqlite_db = /home/dvaleriani/swift-drive.db
 
 # Optional: If you would like to use a ticketing system to raise and close
 #           tickets every time something happens, specify the module here
