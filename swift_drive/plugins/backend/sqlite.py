@@ -2,10 +2,18 @@ import sqlite3
 from swift_drive.common.config import get_config
 
 
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
 class backend():
     def __init__(self):
         dbfile = get_config()['sqlite_db']
         self.db = sqlite3.connect(dbfile)
+        self.db.row_factory = dict_factory
         self.cur = self.db.cursor()
 
     def init_schema(self):
@@ -13,7 +21,7 @@ class backend():
         Initialise the SQLite db schema.
         WARNING: it will wipe out all the existing data!
         """
-        query = 'DROP TABLE IF EXISTS drives;'
+        query = 'DROP TABLE IF EXISTS drives'
         self.cur.execute(query)
         query = '''
         CREATE TABLE drives (
@@ -25,13 +33,13 @@ class backend():
             capacity TEXT,
             status TEXT,
             PRIMARY KEY (name, serial)
-        );
+        )
 
         '''
         self.cur.execute(query)
         self.db.commit()
 
-        query = 'DROP TABLE IF EXISTS ports;'
+        query = 'DROP TABLE IF EXISTS ports'
         self.cur.execute(query)
         query = '''
         CREATE TABLE ports (
@@ -40,24 +48,24 @@ class backend():
             drive_serial TEXT,
             status INT,
             PRIMARY KEY (name, controller_id)
-        );
+        )
 
         '''
         self.cur.execute(query)
         self.db.commit()
 
-        query = 'DROP TABLE IF EXISTS controllers;'
+        query = 'DROP TABLE IF EXISTS controllers'
         self.cur.execute(query)
         query = '''
         CREATE TABLE controllers (
             id TEXT PRIMARY KEY,
             slot INT
-        );
+        )
         '''
         self.cur.execute(query)
         self.db.commit()
 
-        query = 'DROP TABLE IF EXISTS events;'
+        query = 'DROP TABLE IF EXISTS events'
         self.cur.execute(query)
         query = '''
         CREATE TABLE events (
@@ -66,12 +74,12 @@ class backend():
             error TEXT,
             status INT,
             notification_sent INT
-        );
+        )
         '''
         self.cur.execute(query)
         self.db.commit()
 
-        query = 'DROP TABLE IF EXISTS tickets;'
+        query = 'DROP TABLE IF EXISTS tickets'
         self.cur.execute(query)
         query = '''
         CREATE TABLE tickets (
@@ -79,7 +87,7 @@ class backend():
             ticket_number TEXT PRIMARY KEY,
             drive_serial TEXT,
             status INT
-        );
+        )
 
         '''
         self.cur.execute(query)
@@ -114,7 +122,7 @@ class backend():
             firmware,
             capacity,
             status
-        ) VALUES(?, ?, ?, ?, ?, ?, ?);
+        ) VALUES(?, ?, ?, ?, ?, ?, ?)
 
         '''
         self.cur.execute(query, (name, serial, last_update, model,
@@ -128,10 +136,11 @@ class backend():
         the device history, so we can even detect when a failed drive has been
         recycled.
 
+        :param name: The device name.
         :param serial: The drive serial number.
 
         """
-        query = 'DELETE FROM drives WHERE name = ? and serial = ?;'
+        query = 'DELETE FROM drives WHERE name = ? and serial = ?'
         self.cur.execute(query, (name, serial))
         self.db.commit()
 
@@ -147,19 +156,35 @@ class backend():
         :param status: The status of the drive.
         """
         for field, value in kwargs.items():
-            query = 'UPDATE drives SET ? = ? where name = ? and serial = ?;'
-            self.cur.execute(query, (field, value, name, serial))
+            query = 'UPDATE drives SET %s = ? where name = ? and serial = ?' %\
+                    field
+            self.cur.execute(query, (field, name, serial))
             self.db.commit()
 
     def get_drive(self, name, serial):
         """
+        Extract drive information.
+
+        :param name: The device name.
+        :param serial: The drive serial number.
+        :returns: A dictionary with the information.
         """
-        pass
+        query = 'SELECT * FROM drives WHERE name = ? and serial = ?'
+        self.cur.execute(query, (name, serial))
+        return self.cur.fetchone()
 
     # Port related methods
 
     def add_port(self, name, controller_id, drive_serial, status):
         """
+        Adds a port to the ports table.
+
+        :param name: The port name.
+        :param controller_id: The id of the controller where the port is
+                              attached.
+        :param drive_serial: The serial of the drive currently connected to
+                             the port.
+        :param status: The status of the port.
         """
         query = '''
         INSERT INTO ports (
@@ -174,35 +199,55 @@ class backend():
 
     def delete_port(self, name, controller_id):
         """
+        Removes a port from the ports table.
+
+        :param name: The port name.
+        :param controller_id: The id of the controller where the port is
+                              attached.
         """
-        query = 'DELETE FROM ports WHERE name = ? and controller_id = ?;'
+        query = 'DELETE FROM ports WHERE name = ? and controller_id = ?'
         self.cur.execute(query, (name, controller_id))
         self.db.commit()
 
     def update_port(self, name, controller_id, **kwargs):
         """
+        Updates information for a port.
+
+        :param name: The port name.
+        :param controller_id: The id of the controller where the port is
+                              attached.
         """
         for field, value in kwargs.items():
-            query = 'UPDATE ports SET ? = ? where name = ? and controller_id = ?;'
-            self.cur.execute(query, (field, value, name, controller_id))
+            query = '''
+            UPDATE ports SET %s = ?
+            WHERE name = ?
+            AND controller_id = ?
+            ''' % field
+            self.cur.execute(query, (value, name, controller_id))
             self.db.commit()
 
     def get_port(self, name, controller_id):
         """
+        Extract port information.
+
+        :param name: The port name.
+        :param controller_id: The id of the controller where the port is
+                              attached.
+        :returns: A dictionary with the information.
         """
-        query = '''
-                SELECT drive_serial, status
-                FROM ports
-                WHERE name = ? and controller_id = ?;
-                '''
+        query = 'SELECT * FROM ports WHERE name = ? and controller_id = ?'
         self.cur.execute(query, (name, controller_id))
-        slot = self.cur.fetchone()
-        return slot
+        res = self.cur.fetchone()
+        return res
 
     # Controller related methods
 
     def add_controller(self, controller_id, slot):
         """
+        Adds a controller to the controllers table.
+
+        :param controller_id: The id of the controller.
+        :param slot: The slot where the controller is connected.
         """
         query = '''
         INSERT INTO controllers (
@@ -215,33 +260,46 @@ class backend():
 
     def delete_controller(self, controller_id):
         """
+        Removes a controller from the controllers table.
+
+        :param controller_id: The id of the controller.
         """
-        query = 'DELETE FROM controllers WHERE controller_id = ?;'
+        query = 'DELETE FROM controllers WHERE id = ?'
         self.cur.execute(query, (controller_id,))
         self.db.commit()
 
     def update_controller(self):
         """
-        Do we really need this?
+        Do you really need this?
         """
         pass
 
-    def get_controller(self, controller_id):
+    def get_controller_slot(self, controller_id):
         """
         Returns the slot for the given controller id.
 
         :param controller_id: the id of the controller
         :returns: the slot number for the controller
         """
-        query = 'SELECT slot FROM controllers WHERE id = ?;'
+        query = 'SELECT slot FROM controllers WHERE id = ?'
         self.cur.execute(query, (controller_id,))
-        slot = self.cur.fetchone()[0]
+        slot = self.cur.fetchone()['slot']
         return slot
 
     # Event related methods
 
     def add_event(self, time, drive_serial, error, status, notification_sent):
         """
+        Adds an event to the events table.
+
+        :param time: The time when the event happened.
+        :param drive_serial: The drive's serial number.
+        :param error: The error reported by the controller.
+        :param status: The event status. Could be new, inprogress, closed and
+                       error.
+        :param notification_sent: Should be 'yes' if a notification has been
+                                  sent.
+
         """
         query = '''
         INSERT INTO events (
@@ -249,8 +307,7 @@ class backend():
             drive_serial,
             error,
             status,
-            notification_sent,
-            PRIMARY KEY (time, drive_serial)
+            notification_sent
         ) VALUES (?, ?, ?, ?, ?)
         '''
         self.cur.execute(query, (time, drive_serial, error,
@@ -259,23 +316,50 @@ class backend():
 
     def delete_event(self):
         """
-        Do we really need this?
+        Do you really need this?
         """
         pass
 
     def update_event(self, time, drive_serial, **kwargs):
         """
+        Updates information for an existing event.
+
+        :param time: The time when the event happened.
+        :param drive_serial: The drive's serial number.
         """
         for field, value in kwargs.items():
-            query = ('UPDATE events SET ? = ?',
-                     ' where time = ? and drive_serial = ?;')
-            self.cur.execute(query, (field, value, time, drive_serial))
+            query = '''
+            UPDATE events SET %s = ?
+            WHERE time = ?
+            AND drive_serial = ?
+            ''' % field
+            self.cur.execute(query, (value, time, drive_serial))
             self.db.commit()
+
+    def get_event(self, time, drive_serial):
+        """
+        Extract event information.
+
+        :param time: The time when the event happened.
+        :param drive_serial: The drive's serial number.
+        :returns: A dictionary with the information.
+        """
+        query = 'SELECT * FROM events WHERE time = ? and drive_serial = ?'
+        self.cur.execute(query, (time, drive_serial))
+        res = self.cur.fetchone()
+        return res
 
     # Ticket related methods
 
     def add_ticket(self, time, ticket_number, drive_serial, status):
         """
+        Adds a ticket to the tickets table.
+
+        :param time: The time when the event happened.
+        :param ticket_number: The ticket number.
+        :param drive_serial: The drive's serial number.
+        :param status: The event status. Could be new, inprogress, closed and
+                       error.
         """
         query = '''
         INSERT INTO tickets (
@@ -290,14 +374,33 @@ class backend():
 
     def delete_ticket(self):
         """
-        Do we really need this?
+        Do you really need this?
         """
         pass
 
     def update_ticket(self, ticket_number, **kwargs):
         """
+        Updates information for an existing ticket.
+
+        :param time: The time when the event happened.
+        :param ticket_number: The ticket number.
         """
         for field, value in kwargs.items():
-            query = 'UPDATE tickets SET ? = ? where ticket_number = ?;'
-            self.cur.execute(query, (field, value, ticket_number))
+            query = '''
+            UPDATE tickets SET %s = ?
+            WHERE ticket_number = ?
+            ''' % field
+            self.cur.execute(query, (value, ticket_number))
             self.db.commit()
+
+    def get_ticket(self, ticket_number):
+        """
+        Extract ticket information.
+
+        :param ticket_number: The ticket number.
+        :returns: A dictionary with the information.
+        """
+        query = 'SELECT * FROM tickets WHERE ticket_number = ?'
+        self.cur.execute(query, (ticket_number,))
+        res = self.cur.fetchone()
+        return res
