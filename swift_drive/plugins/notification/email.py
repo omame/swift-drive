@@ -28,7 +28,7 @@ def send_notification(subject, msg):
         sender = 'alert@swift-drive.com'
 
     try:
-        message = '[swift-drive] - ' + hostname + ' - ' + subject + msg
+        message = '[swift-drive] - %s - %s/r/n/r/n%s' % (hostname, subject, msg)
         server = smtplib.SMTP('localhost')
         server.set_debuglevel(0)
         server.sendmail(sender, recipients, message)

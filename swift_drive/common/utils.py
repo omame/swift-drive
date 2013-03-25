@@ -47,25 +47,26 @@ def execute(cmd):
     return lines
 
 
-def exit(message, subject='', error_code=1):
+def exit(message, subject='', error_code=1, notify=True):
     '''
     Exit with a specific error code (default 1).
-    TODO: check if there is a notification module loaded and in case send out
-          a message.
 
-    :msg: Message to be returned
-    :error_code: Exit code
+    :param msg: Message to be returned.
+    :param subject: Subject for the email.
+    :param error_code: Exit code.
+    :param notify: Should we send out a notification?
     '''
-    try:
-        notification_types = get_config()['notifications'].split(',')
-        for notification in notification_types:
-            try:
-                eval(notification).send_notification(subject, message)
-            except:
-                raise Exception('Error: notification type not found')
-    except:
-        # Nothing serious, just no need to notify
-        pass
+    if notify:
+        try:
+            notification_types = get_config()['notifications'].split(',')
+            for notification in notification_types:
+                try:
+                    eval(notification).send_notification(subject, message)
+                except:
+                    raise Exception('Error: notification type not found')
+        except:
+            # Nothing serious, just no need to notify
+            pass
     print message
     sys.exit(error_code)
 

@@ -9,7 +9,7 @@ def dict_factory(cursor, row):
     return d
 
 
-class backend():
+class Backend():
     def __init__(self):
         dbfile = get_config()['sqlite_db']
         self.db = sqlite3.connect(dbfile)
@@ -336,17 +336,25 @@ class backend():
             self.cur.execute(query, (value, time, drive_serial))
             self.db.commit()
 
-    def get_event(self, time, drive_serial):
+    def get_event(self, drive_serial, **kwargs):
         """
         Extract event information.
+        NOTE: If the keyword time is present, it represents the starting time
+        for the search.
 
-        :param time: The time when the event happened.
         :param drive_serial: The drive's serial number.
-        :returns: A dictionary with the information.
+        :returns: A list of dictionaries containing the information.
         """
-        query = 'SELECT * FROM events WHERE time = ? and drive_serial = ?'
-        self.cur.execute(query, (time, drive_serial))
-        res = self.cur.fetchone()
+        query = 'SELECT * FROM events WHERE drive_serial = ?'
+        values = [drive_serial]
+        for field, value in kwargs.items():
+            if field == 'time':
+                query += ' AND time > ?'
+            else:
+                query += ' AND %s = ?' % field
+            values.append(value)
+        self.cur.execute(query, tuple(values))
+        res = self.cur.fetchall()
         return res
 
     # Ticket related methods
