@@ -59,7 +59,7 @@ class Backend():
         query = '''
         CREATE TABLE controllers (
             id TEXT PRIMARY KEY,
-            slot INT
+            port INT
         )
         '''
         self.cur.execute(query)
@@ -148,12 +148,8 @@ class Backend():
         """
         Updates drives information.
 
-        :param last_update: The time when the drive is being added.
+        :param name: The time when the drive is being added.
         :param serial: The drive serial number.
-        :param model: The drive model.
-        :param firmware: The drive firmware version.
-        :param capacity: The drive capacity.
-        :param status: The status of the drive.
         """
         for field, value in kwargs.items():
             query = 'UPDATE drives SET %s = ? where name = ? and serial = ?' %\
@@ -161,19 +157,22 @@ class Backend():
             self.cur.execute(query, (field, name, serial))
             self.db.commit()
 
-    def get_drive(self, name, serial):
+    def get_drive(self, name):
         """
         Extract drive information.
+        This looks for the most updated entry.
 
         :param name: The device name.
-        :param serial: The drive serial number.
         :returns: A dictionary with the information.
         """
-        query = 'SELECT * FROM drives WHERE name = ? and serial = ?'
-        self.cur.execute(query, (name, serial))
-        return self.cur.fetchone()
+        query = 'SELECT * FROM drives WHERE name = ? ORDER BY last_update DESC'
+        self.cur.execute(query, (name, ))
+        drive = self.cur.fetchone()
+        if not drive:
+            return None
+        return drive
 
-    # Port related methods
+    # port related methods
 
     def add_port(self, name, controller_id, drive_serial, status):
         """
@@ -242,20 +241,20 @@ class Backend():
 
     # Controller related methods
 
-    def add_controller(self, controller_id, slot):
+    def add_controller(self, controller_id, port):
         """
         Adds a controller to the controllers table.
 
         :param controller_id: The id of the controller.
-        :param slot: The slot where the controller is connected.
+        :param port: The port where the controller is connected.
         """
         query = '''
         INSERT INTO controllers (
             id,
-            slot
+            port
         ) VALUES (?, ?)
         '''
-        self.cur.execute(query, (controller_id, slot))
+        self.cur.execute(query, (controller_id, port))
         self.db.commit()
 
     def delete_controller(self, controller_id):
@@ -274,17 +273,37 @@ class Backend():
         """
         pass
 
-    def get_controller_slot(self, controller_id):
+    def get_controller_port(self, controller_id):
         """
-        Returns the slot for the given controller id.
+        Returns the port for the given controller id.
 
         :param controller_id: the id of the controller
-        :returns: the slot number for the controller
+        :returns: the port number for the controller
         """
-        query = 'SELECT slot FROM controllers WHERE id = ?'
+        query = 'SELECT port FROM controllers WHERE id = ?'
         self.cur.execute(query, (controller_id,))
-        slot = self.cur.fetchone()['slot']
-        return slot
+        try:
+            return self.cur.fetchone()['port']
+        except:
+            return None
+
+    def get_controller_id(self, drive_serial):
+        """
+        Get the controller id for a given drive serial.
+
+        :param drive_serial: The serial number of the drive.
+        :returns: The controller id.
+        """
+        query = '''
+        SELECT controller_id FROM ports
+        WHERE drive_serial = ?
+        AND status = 'active'
+        '''
+        self.cur.execute(query, (drive_serial, ))
+        try:
+            return self.cur.fetchone()['controller_id']
+        except:
+            return None
 
     # Event related methods
 

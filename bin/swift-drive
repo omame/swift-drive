@@ -1,9 +1,14 @@
 #!/usr/bin/python
 from sys import argv, exit
 
-command = argv[0]
-function = getattr(__import__('swift_drive.commands',
-                   fromlist=[command]), command)
+try:
+    command = argv[1]
+except:
+    print 'Invalid number of arguments'
+    exit()
+
+function = getattr(__import__('swift_drive.commands.' + command,
+                   fromlist=['main']), 'main')
 try:
     retval = function()
 except BaseException, err:

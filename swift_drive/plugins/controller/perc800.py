@@ -1,5 +1,5 @@
 import re
-from swift_drive.common import utils
+from swift_drive.common.utils import execute, get_binaries
 from swift_drive.common import disk
 from swift_drive.common.config import get_config
 
@@ -8,21 +8,25 @@ COMMANDS = ['omconfig', 'omreport']
 
 class Controller():
     def __init__(self):
-        # First of all check if omreport and omconfig are usable.
-        # We need to check if there is an override in the config file and create
-        # a dictionary with the specified binaries
+        """
+        Initialise the binaries for the controller. Prefer those specified in
+        the config file to the ones in $PATH. Raise an exception in case at
+        least one isn't usable.
+
+        Binaries dictionary format:
+        {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
+
+        """
         config = get_config()
         try:
             binaries = config['controller_binaries']
             self.binaries = dict([(a.split('/')[-1], a) for a in
                                  binaries.split(', ')])
         except Exception, e:
-            self.binaries = utils.get_binaries(COMMANDS)
+            self.binaries = get_binaries(COMMANDS)
             if COMMANDS != sorted(self.binaries.keys()):
-                raise Exception("Error trying to locate the omtools "
-                                "binaries: %s" % e)
-    # binaries now should contain a dictionary like this
-    # {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
+                msg = 'Error trying to locate the omtools binaries: %s' % e
+                raise Exception(msg)
 
     def get_drive_from_device(self, device_name):
         """
@@ -44,8 +48,6 @@ class Controller():
         :returns: A dictionary that contains two dictionaries with the collected
                   relevant information about the device.
         """
-        # TODO: All those exits should trigger a notification. I think this should
-        #       be handled by utils.exit, not here.
         controller = str(controller)
         vdisk_id = str(vdisk_id)
         results = {}
@@ -55,12 +57,11 @@ class Controller():
             d = eval(name)
             cmd = '%s storage %s controller=%s vdisk=%s' % \
                   (self.binaries['omreport'], name, controller, vdisk_id)
-            res = utils.execute(cmd)
+            res = execute(cmd)
             # Exit if we catch an error message
             if re.match(r'^Error:*', res[0]):
-                msg = ("Error: Unable to get drive info for vdisk %s\n"
-                       "Omreport error: %s") % (vdisk_id, res[0])
-                utils.exit(msg)
+                raise Exception("Error: Unable to get drive info for vdisk %s\n"
+                                "Omreport error: %s") % (vdisk_id, res[0])
             else:
                 # The perc controller is attached to a slot and we need to know
                 # its id otherwise is pointless to go any further
@@ -70,13 +71,13 @@ class Controller():
                     msg = ("Error: can't fetch the slot number.\n"
                            "Probably the drive has been removed already.\n"
                            "Controller: %s, vdisk: %s") % (controller, vdisk_id)
-                    utils.exit(msg)
+                    raise Exception(msg)
 
                 # We can split everything after the second element by ':'
                 # so we will have a very nice dictionary (with 0 effort)
-                for e in res[2:]:
-                    k, v = e.split(':', 1)
-                    d[k.lower().strip()] = v.lower().strip()
+                for element in res[2:]:
+                    key, value = element.split(':', 1)
+                    d[key.lower().strip()] = value.lower().strip()
                 results['%s_status' % name] = d['status']
             name = d
 
@@ -87,6 +88,7 @@ class Controller():
         results['slot'] = pdisk['slot']
         capacity = pdisk['capacity'].split()[0].split('.')[0]
         results['capacity'] = capacity.replace(',', '.')[:4] + ' TB'
+        results['status'] = pdisk['status']
         return results
 
     def remove_device(self, controller, vdisk_id):
@@ -98,13 +100,12 @@ class Controller():
 
         :param controller: The controller id.
         :param vdisk_id: The id of the vdisk to remove.
-        :param pdisk_id: The id of the pdisk to remove.
         :returns: A boolean value that reflects the result of the operation.
         """
         controller = str(controller)
         vdisk_id = str(vdisk_id)
         device_id = 'c%su%s' % (controller, vdisk_id)
-        drive_info = self.get_drive_info(controller, vdisk_id)
+        drive_info = self.get_drive_from_controller(controller, vdisk_id)
         pdisk_id = drive_info['port']
         # First try to turn the indicator light on for the device port
         try:
@@ -116,28 +117,25 @@ class Controller():
 
         # Then check if the device is not mounted
         if disk.is_mounted(device_id):
-            try:
-                disk.umount(device_id)
-            except Exception, e:
-                utils.exit(e)
+            disk.umount(device_id)
 
         # If all goes well then proceed with removing the device unit
         removal_cmd = ('%s storage vdisk action=deletevdisk controller=%s '
                        'vdisk=%s' % (self.binaries['omconfig'],
                        controller, vdisk_id))
-        removal_result = utils.execute(removal_cmd)
+        removal_result = execute(removal_cmd)
         if not 'Command successful!' in removal_result[0]:
-            msg = ("Error: Failed to remove vdisk %s from "
-                   "controller %s for pdisk %s\n"
-                   "Omconfig error: %s ") % (vdisk_id, controller,
-                                             pdisk_id, removal_result[0])
-            utils.exit(msg)
+            raise Exception("Error: Failed to remove vdisk %s from "
+                            "controller %s for pdisk %s\n"
+                            "Omconfig error: %s ") % \
+                           (vdisk_id, controller, pdisk_id, removal_result[0])
 
     def add_device(self, controller, vdisk_id, pdisk_id, format=True):
         """
         Add a device back into the system.
 
         :param controller: The controller id.
+        :param vdisk_id: The id of the vdisk that should be created.
         :param pdisk_id: The id of the pdisk to add.
         :param format: Specifies wheter or not the drive should be formatted.
         :returns: A boolean value that reflects the result of the operation.
@@ -170,11 +168,11 @@ class Controller():
             'pdisk=%s raid=r0 size=max stripesize=64kb diskcachepolicy=disabled ' \
             'readpolicy=ara writepolicy=wb' % \
             (self.binaries['omconfig'], controller, pdisk_id)
-        add_result = utils.execute(add_cmd)
+        add_result = execute(add_cmd)
         if not 'Command successful!' in add_result[0]:
-            msg = ("Cannot create vdisk on port %s for controller %s.\n"
-                   "Error: %s ") % (pdisk_id, controller, str(add_result))
-            utils.exit(msg)
+            raise Exception("Cannot create vdisk on port %s for controller %s.\n"
+                            "Error: %s ") % \
+                           (pdisk_id, controller, str(add_result))
 
         """
         Device added, so partition and format it
@@ -213,7 +211,7 @@ class Controller():
 
         indicator_cmd = '%s storage pdisk action=%s controller=%s pdisk=%s' \
             % (self.binaries['omconfig'], action, controller, pdisk_id)
-        indicator_result = utils.execute(indicator_cmd)
+        indicator_result = execute(indicator_cmd)
         if not 'Command successful!' in indicator_result[0]:
             msg = ("Error: Failed to turn the indicator light off "
                    "for pdisk %s on controller %s.\n"
