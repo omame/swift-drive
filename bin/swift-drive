@@ -7,6 +7,10 @@ except:
     print 'Invalid number of arguments'
     exit()
 
+if command not in ['init', 'start_swap']:
+    print 'Command not supported'
+    exit()
+
 function = getattr(__import__('swift_drive.commands.' + command,
                    fromlist=['main']), 'main')
 try:

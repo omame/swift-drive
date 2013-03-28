@@ -12,7 +12,7 @@ except ImportError:
 now = int(time())
 
 
-class HandleFailedDrives():
+class StartSwap():
     def __init__(self):
         # Load the controller module
         try:
@@ -110,12 +110,13 @@ class HandleFailedDrives():
         # # We should now raise a ticket, if we want it
         # if self.ticketing is not None:
         #     try:
-        #         self.ticketing.create()
+        #         ticket_number = self.ticketing.create()
         #     except Exception, msg:
         #         # We should exit if we can't raise a ticket. Since the status
         #         # of the event is still 'new' we will deal with this the next
         #         # time this command runs.
         #         exit(msg)
+        # # TODO: Add the ticket to the backend using the ticket_number
         #######################################################################
 
         ################# Uncomment once ticketing is working #################
@@ -190,4 +191,4 @@ def main():
     """
     Main entry point. Just invokes HandleFailedDrives.
     """
-    return HandleFailedDrives().main()
+    return StartSwap().main()
