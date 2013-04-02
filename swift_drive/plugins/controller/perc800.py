@@ -109,7 +109,7 @@ class Controller():
         pdisk_id = drive_info['port']
         # First try to turn the indicator light on for the device port
         try:
-            self.led('blink', controller, pdisk_id)
+            self.switch_led('blink', controller, pdisk_id)
         except:
             # We'll just pass for now. In the future it'd be cool to get
             # notified when this happens. TODO
@@ -187,13 +187,13 @@ class Controller():
         Let's go ahead and turn the indicator light off
         """
         try:
-            self.led('unblink', controller, pdisk_id)
+            self.switch_led('unblink', controller, pdisk_id)
         except:
             # We'll just pass for now. In the future it'd be cool to get
             # notified when this happens. TODO
             pass
 
-    def led(self, action, controller, pdisk_id):
+    def switch_led(self, action, controller, pdisk_id):
         '''
         Switch on or off the indicator led for a specific pdisk.
 
@@ -218,3 +218,43 @@ class Controller():
                    "Error: %s ") % (pdisk_id, controller,
                                     indicator_result[0])
             raise Exception(msg)
+
+    def get_controllers(self):
+        '''
+        Extract information for the controllers.
+
+        :returns: A dictionary with the id and PCI slot.
+        '''
+        cmd = '%s storage controller' % self.binaries['omreport']
+        result = execute(cmd)
+        filtered_result = [a for a in result
+                           if a.startswith('ID') or a.startswith('Slot ID')]
+        controllers = {}
+        for n in range(0, len(filtered_result), 2):
+            controller_id = filtered_result[n].split(':')[1].strip()
+            slot_id = filtered_result[n + 1].split(':')[1].strip()
+            controllers[controller_id] = slot_id
+        return controllers
+
+    # def get_ports(self, controller_id):
+    #     '''
+    #     Extract information for the ports.
+    #     NOTE: A drive must be inserted for the port to be detected. As far as
+    #     I'm aware the perc800 controller has no way to get the ports status
+    #     when empty. So in this case it would be more appropriate to say that
+    #     we're returning the list of pdisks.
+
+    #     :param controller_id: The controller to inspect.
+    #     :returns: A dictionary with the information about the pdisks.
+    #     '''
+    #     cmd = '%s storage pdisk controller=%s' % (self.binaries['omreport'],
+    #                                               controller_id)
+    #     result = execute(cmd)
+    #     filtered_result = [a for a in result
+    #                        if a.startswith('ID') or a.startswith('Slot ID')]
+    #     controllers = {}
+    #     for n in range(0, len(filtered_result), 2):
+    #         controller_id = filtered_result[n].split(':')[1].strip()
+    #         slot_id = filtered_result[n + 1].split(':')[1].strip()
+    #         controllers[controller_id] = slot_id
+    #     return controllers

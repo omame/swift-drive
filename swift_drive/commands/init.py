@@ -1,4 +1,5 @@
 from swift_drive.common.config import get_config
+from swift_drive.common.utils import exit, confirm
 
 
 class Init():
@@ -24,12 +25,21 @@ class Init():
 
     def main(self):
         # Wipe the current data in the backend
-        pass
+        msg = 'This will wipe out all the data in the backend! Are you sure?'
+        if confirm(msg):
+            self.backend.init()
+        else:
+            exit('OK, I am stopping here.')
 
-        # Fetch all the information from the controller
-        pass
+        # Fetch all the information from the controllers and put them into the
+        # backend
+        controllers = self.controller.get_controllers()
+        for controller_id in controllers:
+            self.backend.add_controller(controller_id,
+                                        controllers[controller_id])
 
-        # Populate the backend with the information we just collected
+        # For each controller get the list of the ports and put them into the
+        # backend
         pass
 
 

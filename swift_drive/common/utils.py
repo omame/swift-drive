@@ -105,3 +105,29 @@ def get_binaries(binaries):
                 if is_exe(binary_path):
                     results[binary] = binary_path
     return results
+
+
+def confirm(message, default=False):
+    """
+    Ask the user ot confirm an action.
+    'default' should be set to the default value assumed by the caller when
+    user simply types ENTER.
+
+    :param message: The message to prompt.
+    :returns: True for yes and False for no.
+    """
+    message += ' [N|y]: '
+    if default:
+        message += ' [Y|n]: '
+
+    while True:
+        answer = raw_input(message)
+        if not answer:
+            continue
+        if answer.lower() == 'y':
+            return True
+        elif answer.lower() == 'n':
+            return False
+        else:
+            print 'Please enter y or n'
+            continue

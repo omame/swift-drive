@@ -59,7 +59,7 @@ class Backend():
         query = '''
         CREATE TABLE controllers (
             id TEXT PRIMARY KEY,
-            port INT
+            slot INT
         )
         '''
         self.cur.execute(query)
@@ -273,14 +273,14 @@ class Backend():
         """
         pass
 
-    def get_controller_port(self, controller_id):
+    def get_controller_slot(self, controller_id):
         """
-        Returns the port for the given controller id.
+        Returns the PCI slot for the given controller id.
 
         :param controller_id: the id of the controller
-        :returns: the port number for the controller
+        :returns: the slot number for the controller
         """
-        query = 'SELECT port FROM controllers WHERE id = ?'
+        query = 'SELECT slot FROM controllers WHERE id = ?'
         self.cur.execute(query, (controller_id,))
         try:
             return self.cur.fetchone()['port']
