@@ -20,8 +20,8 @@ class Controller():
         config = get_config()
         try:
             binaries = config['controller_binaries']
-            self.binaries = dict([(a.split('/')[-1], a) for a in
-                                 binaries.split(', ')])
+            self.binaries = dict([(a.split('/')[-1].strip(), a.strip())
+                                 for a in binaries.split(', ')])
         except Exception, e:
             self.binaries = get_binaries(COMMANDS)
             if COMMANDS != sorted(self.binaries.keys()):
