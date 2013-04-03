@@ -83,17 +83,22 @@ class Controller():
                 for element in res[2:]:
                     key, value = element.split(':', 1)
                     d[key.lower().strip()] = value.lower().strip()
-                results['%s_status' % name] = d['status']
             name = d
 
         results['port'] = pdisk['id']
-        results['serial'] = pdisk['serial no.']
-        results['model'] = pdisk['product id']
-        results['firmware'] = pdisk['revision']
-        results['slot'] = pdisk['slot']
+        results['serial'] = pdisk['serial no.'].upper()
+        results['model'] = pdisk['product id'].upper()
+        results['firmware'] = pdisk['revision'].upper()
+        results['controller_slot'] = pdisk['slot']
         capacity = pdisk['capacity'].split()[0].split('.')[0]
         results['capacity'] = capacity.replace(',', '.')[:4] + ' TB'
-        results['status'] = pdisk['state']
+        # Use a consistent status by translating what the controller returns
+        if pdisk['state'] == 'online':
+            results['status'] = 'active'
+        elif pdisk['state'] == 'critical':
+            results['status'] = 'failed'
+        else:
+            results['status'] = 'unknown'
         return results
 
     def remove_device(self, controller_id, vdisk_id):
@@ -263,6 +268,13 @@ class Controller():
         for n in range(0, len(filtered_result), 3):
             port_id = ':'.join(filtered_result[n].split(':')[1:]).strip()
             port_status = filtered_result[n + 1].split(':')[1].strip()
+            # Use a consistent status by translating what the controller returns
+            if port_status == 'Non-Critical':
+                port_status = 'active'
+            elif port_status == 'Critical':
+                port_status = 'failed'
+            else:
+                port_status = 'unknown'
             port_serial = filtered_result[n + 2].split(':')[1].strip()
             ports[port_id] = (port_status, port_serial)
         return ports

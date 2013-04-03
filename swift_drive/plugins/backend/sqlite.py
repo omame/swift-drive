@@ -11,6 +11,10 @@ def dict_factory(cursor, row):
 
 class Backend():
     def __init__(self):
+        # Define the accepted statuses for the ports and drives
+        self.valid_port_status_list = ['active', 'error', 'disabled', 'unknown']
+        self.valid_drive_status_list = ['online', 'failed', 'missing',
+                                        'disabled', 'unknown']
         dbfile = get_config()['sqlite_db']
         self.db = sqlite3.connect(dbfile)
         self.db.row_factory = dict_factory
@@ -106,8 +110,11 @@ class Backend():
         :param model: The drive model.
         :param firmware: The drive firmware version.
         :param capacity: The drive capacity.
-        :param status: The status of the drive.
+        :param status: The status of the drive. Accepted values: 'online',
+                       'failed', 'missing', 'disabled' and 'unknown'.
         """
+        if status not in self.valid_drive_status_list:
+            raise Exception('Invalid drive status')
         query = '''
         INSERT INTO drives (
             name,
@@ -144,9 +151,12 @@ class Backend():
         Updates drives information.
 
         :param name: The time when the drive is being added.
-        :param serial: The drive serial number.
+        :param serial: The drive serial number. Accepted values: 'online',
+                       'failed', 'missing', 'disabled' and 'unknown'.
         """
         for field, value in kwargs.items():
+            if field == 'status' and field not in self.valid_drive_status_list:
+                raise Exception('Invalid drive status')
             query = 'UPDATE drives SET %s = ? where name = ? and serial = ?' %\
                     field
             self.cur.execute(query, (field, name, serial))
@@ -178,8 +188,11 @@ class Backend():
                               attached.
         :param drive_serial: The serial of the drive currently connected to
                              the port.
-        :param status: The status of the port.
+        :param status: The status of the port. Accepted values: active, error
+                       or unknown.
         """
+        if status not in self.valid_port_status_list:
+            raise Exception('Invalid port status')
         query = '''
         INSERT INTO ports (
             name,
@@ -212,6 +225,8 @@ class Backend():
                               attached.
         """
         for field, value in kwargs.items():
+            if field == 'status' and field not in self.valid_port_status_list:
+                raise Exception('Invalid port status')
             query = '''
             UPDATE ports SET %s = ?
             WHERE name = ?
