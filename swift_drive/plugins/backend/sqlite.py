@@ -93,11 +93,6 @@ class Backend():
         self.cur.execute(query)
         self.db.commit()
 
-    def populate_schema(self):
-        """
-        """
-        pass
-
     # Drive related methods
 
     def add_drive(self, name, serial, last_update, model,
@@ -241,20 +236,20 @@ class Backend():
 
     # Controller related methods
 
-    def add_controller(self, controller_id, port):
+    def add_controller(self, controller_id, slot):
         """
         Adds a controller to the controllers table.
 
         :param controller_id: The id of the controller.
-        :param port: The port where the controller is connected.
+        :param slot: The PCI slot where the controller is connected.
         """
         query = '''
         INSERT INTO controllers (
             id,
-            port
+            slot
         ) VALUES (?, ?)
         '''
-        self.cur.execute(query, (controller_id, port))
+        self.cur.execute(query, (controller_id, slot))
         self.db.commit()
 
     def delete_controller(self, controller_id):
