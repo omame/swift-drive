@@ -165,9 +165,9 @@ class Controller():
 
         # Now that we cleaned up the vdisk we can move on and create the new one
         add_cmd = '%s storage controller action=createvdisk controller=%s ' \
-            'pdisk=%s raid=r0 size=max stripesize=64kb diskcachepolicy=disabled ' \
-            'readpolicy=ara writepolicy=wb' % \
-            (self.binaries['omconfig'], controller, pdisk_id)
+                  'pdisk=%s raid=r0 size=max stripesize=64kb ' \
+                  'diskcachepolicy=disabled readpolicy=ara writepolicy=wb' % \
+                  (self.binaries['omconfig'], controller, pdisk_id)
         add_result = execute(add_cmd)
         if not 'Command successful!' in add_result[0]:
             raise Exception("Cannot create vdisk on port %s for controller %s.\n"
@@ -236,25 +236,25 @@ class Controller():
             controllers[controller_id] = slot_id
         return controllers
 
-    # def get_ports(self, controller_id):
-    #     '''
-    #     Extract information for the ports.
-    #     NOTE: A drive must be inserted for the port to be detected. As far as
-    #     I'm aware the perc800 controller has no way to get the ports status
-    #     when empty. So in this case it would be more appropriate to say that
-    #     we're returning the list of pdisks.
+    def get_ports(self, controller_id):
+        '''
+        Extract information for the ports.
+        NOTE: A drive must be inserted for the port to be detected. As far as
+        I'm aware the perc800 controller has no way to get the ports status
+        when empty. So in this case it would be more appropriate to say that
+        we're returning the list of pdisks.
 
-    #     :param controller_id: The controller to inspect.
-    #     :returns: A dictionary with the information about the pdisks.
-    #     '''
-    #     cmd = '%s storage pdisk controller=%s' % (self.binaries['omreport'],
-    #                                               controller_id)
-    #     result = execute(cmd)
-    #     filtered_result = [a for a in result
-    #                        if a.startswith('ID') or a.startswith('Slot ID')]
-    #     controllers = {}
-    #     for n in range(0, len(filtered_result), 2):
-    #         controller_id = filtered_result[n].split(':')[1].strip()
-    #         slot_id = filtered_result[n + 1].split(':')[1].strip()
-    #         controllers[controller_id] = slot_id
-    #     return controllers
+        :param controller_id: The controller to inspect.
+        :returns: A dictionary with the information about the pdisks.
+        '''
+        cmd = '%s storage pdisk controller=%s' % (self.binaries['omreport'],
+                                                  controller_id)
+        result = execute(cmd)
+        filtered_result = [a for a in result
+                           if a.startswith('ID') or a.startswith('State')]
+        ports = {}
+        for n in range(0, len(filtered_result), 2):
+            port_id = ':'.join(filtered_result[n].split(':')[1:]).strip()
+            port_status = filtered_result[n + 1].split(':')[1].strip()
+            ports[port_id] = port_status
+        return ports
