@@ -9,7 +9,7 @@ except ImportError:
     import json
 
 
-def get_unmounted_drives():
+def get_unmounted_devices():
     """
     Get unmounted drives information from swift-recon
 
@@ -103,7 +103,7 @@ def umount(device_name, basepath='/srv/node'):
         raise Exception(msg)
 
 
-def format_drive(device_name, size, label=None):
+def format_device(device_name, size, label=None):
     '''
     Partition and format a drive in order to add it back to the syste.
     We assume that the partition label is identical to the device name and

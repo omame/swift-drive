@@ -278,11 +278,17 @@ class Backend():
         self.cur.execute(query, (controller_id,))
         self.db.commit()
 
-    def update_controller(self):
+    def update_controller_id(self, slot, controller_id):
         """
-        Do you really need this?
+        Update the controller id. This is particularly useful with
+        LSI controllers as the id tends to change after every reboot.
+
+        :param slot: The PCI slot where the controller is connected.
+        :param controller_id: The new id of the controller.
         """
-        pass
+        query = 'UPDATE controllers SET id = ? WHERE slot = ?'
+        self.cur.execute(query, (controller_id, slot))
+        self.db.commit()
 
     def get_controller_slot(self, controller_id):
         """

@@ -188,7 +188,7 @@ class Controller():
         Device added, so partition and format it
         """
         if format:
-            disk.format_drive(device_name, '3T', device_id)
+            disk.format_device(device_name, '3T', device_id)
         """
         Now let's mount the device back into the system
         """
