@@ -269,10 +269,10 @@ class Controller():
             port_id = ':'.join(filtered_result[n].split(':')[1:]).strip()
             port_status = filtered_result[n + 1].split(':')[1].strip()
             # Use a consistent status by translating what the controller returns
-            if port_status == 'Non-Critical':
+            if port_status == 'Online':
                 port_status = 'active'
-            elif port_status == 'Critical':
-                port_status = 'failed'
+            elif port_status in ['Failed', 'Foreign']:
+                port_status = port_status.lower()
             else:
                 port_status = 'unknown'
             port_serial = filtered_result[n + 2].split(':')[1].strip()
@@ -298,8 +298,8 @@ class Controller():
         for vdisk_id in vdisks:
             device_id = 'c%su%s' % (controller_id, vdisk_id)
             try:
-                all_drives[device_id] = self.get_drive_from_controller(controller_id,
-                                                                   vdisk_id)
+                all_drives[device_id] = self.get_drive_from_controller(
+                                            controller_id, vdisk_id)
             except:
                 print device_id + ' had problems'
         return all_drives

@@ -12,8 +12,9 @@ def dict_factory(cursor, row):
 class Backend():
     def __init__(self):
         # Define the accepted statuses for the ports and drives
-        self.valid_port_status_list = ['active', 'error', 'disabled', 'unknown']
-        self.valid_drive_status_list = ['online', 'failed', 'missing',
+        self.valid_port_status_list = ['active', 'error', 'disabled',
+                                       'unknown', 'foreign']
+        self.valid_drive_status_list = ['active', 'failed', 'missing',
                                         'disabled', 'unknown']
         dbfile = get_config()['sqlite_db']
         self.db = sqlite3.connect(dbfile)
