@@ -7,33 +7,43 @@ from swift_drive.common.config import get_config
 #from swift_drive.common.template import get_template
 
 
-def send_notification(subject, msg):
-    # Get the list of recipients from the config file.
-    # The option is notification_email_recipients
-    from swift_drive.common.utils import get_hostname
-    hostname = get_hostname()
-    config = get_config()
-    # Get the recipients from the configuration. We can't go any further
-    # without any.
-    try:
-        recipients = config['notification_email_recipients'].split(',')
-    except:
-        raise Exception('Error: could not find any recipients in the '
-                        'configuration file. Please configure at least one.')
+class Notification():
+    def __init__(self):
+        self.smtp_server = smtplib.SMTP('localhost')
 
-    # Check if there is a specific sender configured.
-    try:
-        sender = config['notification_email_from']
-    except:
-        sender = 'alert@swift-drive.com'
+    def send_notification(self, subject, body):
+        # Get the list of recipients from the config file.
+        # The option is notification_email_recipients
+        from swift_drive.common.utils import get_hostname
+        hostname = get_hostname()
+        config = get_config()
+        # Get the recipients from the configuration. We can't go any further
+        # without any.
+        try:
+            recipients = config['notification_email_recipients'].split(',')
+        except:
+            raise Exception('Error: could not find any recipients in the '
+                            'configuration file. Please configure at least one.')
 
-    try:
-        message = '[swift-drive] - %s - %s/r/n/r/n%s' % (hostname, subject, msg)
-        server = smtplib.SMTP('localhost')
-        server.set_debuglevel(0)
-        server.sendmail(sender, recipients, message)
-        server.quit()
-    except:
-        # TODO: It should try again for a few times
-        raise
-    return True
+        # Check if there is a specific sender configured.
+        try:
+            sender = config['notification_email_from']
+        except:
+            sender = 'alert@swift-drive.com'
+
+        for recipient in recipients:
+            subject = '[swift-drive] - %s - %s' % (hostname, subject)
+            message = 'From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s' % \
+                      (sender, recipient, subject, body)
+            # Try to send an email for 3 times before raising an exception
+            for retries in range(4):
+                if retries == 3:
+                    msg = 'Failed to send an email to %s. Error: %s' % \
+                          (recipient, e)
+                    raise Exception(msg)
+                try:
+                    self.smtp_server.sendmail(sender, recipient, message)
+                except Exception, e:
+                    pass
+                finally:
+                    break

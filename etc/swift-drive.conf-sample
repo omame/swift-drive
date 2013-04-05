@@ -22,7 +22,7 @@ sqlite_db = /home/dvaleriani/swift-drive.db
 notifications = email
 
 # Specific: List of the recipients to notify by email (comma separated list)
-notification_email_recipients = prowl@alerts.valeriani.co.uk,daniele@valeriani.co.uk
+notification_email_recipients = daniele.valeriani@rackspace.co.uk
 
 # Specific: The sender address for the email notifications
 # notification_email_sender =
