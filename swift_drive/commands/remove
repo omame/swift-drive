@@ -9,11 +9,10 @@ try:
 except ImportError:
     import json
 
-now = int(time())
 
-
-class StartSwap():
+class RemoveDrives():
     def __init__(self):
+        self.now = int(time())
         # Load the controller module
         try:
             conf_controller = get_config()['controller']
@@ -21,6 +20,7 @@ class StartSwap():
                                  fromlist=[conf_controller]), conf_controller)
             self.controller = controller.Controller()
         except:
+            # A controller is necessary
             raise Exception('Failed to load %s controller module'
                             % conf_controller)
 
@@ -31,6 +31,7 @@ class StartSwap():
                               fromlist=[conf_backend]), conf_backend)
             self.backend = backend.Backend()
         except:
+            # A backend is necessary
             raise Exception('Failed to load %s backend module' % conf_backend)
 
         # Load the ticketing module
@@ -55,9 +56,10 @@ class StartSwap():
             # We can live without a notification system
             self.notification = None
 
-    def replace_drive(self, device_name):
+    def remove_device(self, device_name):
         """
-        Replaces a drive.
+        Remove a device from the controller, create an event and, if
+        configured, raise a ticket and send out a notification.
 
         :param device_name: The device name.
         """
@@ -68,7 +70,7 @@ class StartSwap():
         if device_info is None:
             drive_info = self.controller.get_drive_from_device(device_name)
             drive_serial = drive_info['serial']
-            self.backend.add_drive(device_name, drive_serial, now,
+            self.backend.add_drive(device_name, drive_serial, self.now,
                                    drive_info['model'], drive_info['firmware'],
                                    drive_info['capacity'], 'failed')
         else:
@@ -83,7 +85,7 @@ class StartSwap():
                                       status='failed')
 
         # Check if the drive had been already replaced in the past 24 hours
-        a_day_ago = now - 86400
+        a_day_ago = self.now - 86400
         events = self.backend.get_event(drive_serial, time=a_day_ago)
         if len(events) > 0:
             exit('The drive %s has been already replaced in the past 24h.\n'
@@ -98,8 +100,8 @@ class StartSwap():
         except:
             drive_info = self.controller.get_drive_from_device(device_name)
 
-        self.backend.add_event(now, drive_serial, drive_info['status'],
-                               'new', 'no')
+        self.backend.add_event(self.now, drive_serial, drive_info['status'],
+                               'new', 1)
         # We can now try to remove the drive from the controller
         try:
             self.controller.remove_device(controller_id, vdisk_id)
@@ -116,35 +118,44 @@ class StartSwap():
         #         # of the event is still 'new' we will deal with this the next
         #         # time this command runs.
         #         exit(msg)
+        #      finally:
+        #          ticket_sent = True
         # # TODO: Add the ticket to the backend using the ticket_number
         #######################################################################
 
-        ################# Uncomment once ticketing is working #################
-        # # If the ticket has been raised correctly, then we can update the
-        # # event status to 'inprogress'
-        # try:
-        #     self.backend.update_event(now, drive_info['serial'],
-        #                               status='inprogress')
-        # except Exception, msg:
-        #     exit(msg)
+        # We can now update the event status to 'inprogress'
+        try:
+            self.backend.update_event(self.now, drive_info['serial'],
+                                      status='inprogress')
+        except Exception, msg:
+            exit(msg)
 
-        # # Tell the sysops that the drive is being processed
-        # if self.notification is not None:
-        #     try:
-        #         msg = '%s has failed and I raised a ticket to replace it' %\
-        #               device_name
-        #         self.notification.send_notification('Failed drive', msg)
-        #     except:
-        #         pass
-        #######################################################################
+        # Tell the sysops that the drive is being processed
+        if self.notification is not None:
+            try:
+                msg = '%s has failed' % \
+                      device_name
+                # If we sent a ticket, say it in the notification
+                try:
+                    if ticket_sent:
+                        msg += ' and I successfully raised a ticket'
+                except:
+                    pass
+                self.notification.send_notification('Failed drive', msg)
+                self.backend.update_event(self.now(), drive_info['serial'],
+                                          notification_sent=1)
+            except:
+                # We can survive for now. If needed, we can send out the
+                # notification later on.
+                pass
 
     def main(self):
         """
         Detects failed drives and replaces them.
         """
         # # Only root can run this command, so check the UID first
-        # if getuid > 0:
-        #     exit('Only root can run this command', notify=False)
+        if getuid() > 0:
+            exit('Only root can run this command', notify=False)
 
         # Get the list of unmounted drives from swift-recon. If there are more than
         # 3, stop and send out a notification: something bad is happening and it
@@ -175,7 +186,7 @@ class StartSwap():
         # Set up the thread pool
         threads = []
         for drive in unmounted_drives:
-            threads.append(Thread(self.replace_drive(drive,)))
+            threads.append(Thread(self.remove_drive(drive,)))
 
         # Start all threads
         [thread.start() for thread in threads]
@@ -183,12 +194,9 @@ class StartSwap():
         # Wait for all of them to finish
         [thread.join() for thread in threads]
 
-        # Clean up the each failed drive and raise a ticket to replace it
-        pass
-
 
 def main():
     """
     Main entry point. Just invokes HandleFailedDrives.
     """
-    return StartSwap().main()
+    return RemoveDrives().main()

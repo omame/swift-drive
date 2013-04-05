@@ -337,6 +337,8 @@ class Backend():
                                   sent.
 
         """
+        if notification_sent not in [0, 1]:
+            raise Exception('Invalid notification_sent status')
         query = '''
         INSERT INTO events (
             time,
@@ -364,6 +366,8 @@ class Backend():
         :param drive_serial: The drive's serial number.
         """
         for field, value in kwargs.items():
+            if field == 'notification_sent' and value not in [0, 1]:
+                raise Exception('Invalid notification_sent status')
             query = '''
             UPDATE events SET %s = ?
             WHERE time = ?
