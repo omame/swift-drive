@@ -1,4 +1,4 @@
-from ConfigParser import ConfigParser
+import ConfigParser
 
 # CONFIG_FILE = '/etc/swift-drive/swift-drive.conf'
 # This is for testing
@@ -9,17 +9,24 @@ class ConfigFileError(Exception):
     pass
 
 
-def get_config(config_file=CONFIG_FILE):
+conf = ConfigParser.ConfigParser()
+try:
+    conf.read(CONFIG_FILE)
+except ConfigParser.Error, e:
+    raise ConfigFileError("Error trying to load config {0}: {1}".format(
+                          CONFIG_FILE, e))
+
+
+def get_config(section="common"):
     """
-    Get the value for the specified key in the config file.
+    Get the values for the specified section in the config file.
 
     :param config_file: The configuration file to read.
     :returns: A dictionary with the configuration values.
     """
-    c = ConfigParser()
     try:
-        c.read(config_file)
-        return dict(c.items('swift-drive'))
-    except Exception, e:
-        raise ConfigFileError("Error trying to load config %s: %s" %
-                             (config_file, e))
+        return dict(conf.items(section))
+    except ConfigParser.Error, e:
+        raise ConfigFileError("Error reading conf section {0}: {1}".format(
+                             section, e))
+

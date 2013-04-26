@@ -16,7 +16,7 @@ class Notification():
         # The option is notification_email_recipients
         from swift_drive.common.utils import get_hostname
         hostname = get_hostname()
-        config = get_config()
+        config = get_config('email')
         # Get the recipients from the configuration. We can't go any further
         # without any.
         try:

@@ -1,17 +1,9 @@
-[swift-drive]
+[common]
 # Mandatory: The plugin to load in order to interact with the controller
 controller = perc800
 
-# Optional: Specify the absolute path only if the binaries are not in $PATH
-#controller_binaries =
-
 # Mandatory: The backend plugin to store all the needed information
 backend = sqlite
-
-# SQLite specific parameters
-#
-# Db location
-sqlite_db = /home/dvaleriani/swift-drive.db
 
 # Optional: If you would like to use a ticketing system to raise and close
 #           tickets every time something happens, specify the module here
@@ -21,8 +13,21 @@ sqlite_db = /home/dvaleriani/swift-drive.db
 #           specify the notification modules here (comma separated list)
 notifications = email
 
-# Specific: List of the recipients to notify by email (comma separated list)
+
+[perc800]
+# Optional: Specify the absolute path only if the binaries are not in $PATH
+#controller_binaries =
+
+
+[sqlite]
+# Mandatory for sqlite:  Db location
+sqlite_db = /home/dvaleriani/swift-drive.db
+
+
+[email]
+# Mandatory for email: List of the recipients to notify by email
+#                      (comma separated list)
 notification_email_recipients = daniele.valeriani@rackspace.co.uk
 
-# Specific: The sender address for the email notifications
+# Optional for email: The sender address for the email notifications
 # notification_email_sender =

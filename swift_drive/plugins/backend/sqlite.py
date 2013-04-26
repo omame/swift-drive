@@ -16,7 +16,8 @@ class Backend():
                                        'unknown', 'foreign']
         self.valid_drive_status_list = ['active', 'failed', 'missing',
                                         'disabled', 'unknown']
-        dbfile = get_config()['sqlite_db']
+        self.conf = get_config('sqlite')
+        dbfile = self.conf['sqlite_db']
         self.db = sqlite3.connect(dbfile)
         self.db.row_factory = dict_factory
         self.cur = self.db.cursor()
