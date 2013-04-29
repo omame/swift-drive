@@ -17,7 +17,7 @@ class Controller():
         {'omconfig': '/path/to/omconfig', 'omreport': '/path/to/omreport'}
 
         """
-        config = get_config()
+        config = get_config('perc800')
         try:
             binaries = config['controller_binaries']
             self.binaries = dict([(a.split('/')[-1].strip(), a.strip())
