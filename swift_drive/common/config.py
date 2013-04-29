@@ -28,5 +28,4 @@ def get_config(section="common"):
         return dict(conf.items(section))
     except ConfigParser.Error, e:
         raise ConfigFileError("Error reading conf section {0}: {1}".format(
-                             section, e))
-
+                              section, e))
